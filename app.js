@@ -24,6 +24,8 @@ const intensityValue = document.querySelector("#intensityValue");
 const motionValue = document.querySelector("#motionValue");
 const overlayToggle = document.querySelector("#overlayToggle");
 const beatFxToggle = document.querySelector("#beatFxToggle");
+const neonLightsToggle = document.querySelector("#neonLightsToggle");
+const colorRainToggle = document.querySelector("#colorRainToggle");
 const resetControls = document.querySelector("#resetControls");
 const customColor = document.querySelector("#customColor");
 const moodSwatches = document.querySelectorAll(".mood-swatch");
@@ -66,6 +68,15 @@ let lastHistoryCapture = 0;
 let previousBassPulse = 0;
 let lastBeatTime = 0;
 const particles = [];
+const colorDrops = Array.from({ length: 58 }, (_, index) => ({
+  x: ((index * 73) % 101) / 100,
+  y: ((index * 41) % 113) / 113,
+  speed: 0.22 + ((index * 29) % 100) / 95,
+  length: 7 + ((index * 17) % 24),
+  width: 0.45 + ((index * 11) % 9) / 10,
+  hue: ((index * 37) % 100) / 100,
+  band: (index * 13) % 110,
+}));
 const spectrumHistory = [];
 const shockwaves = [];
 const arcBursts = [];
@@ -83,6 +94,8 @@ const controlDefaults = {
   motion: 1,
   overlays: true,
   beatFx: true,
+  neonLights: true,
+  colorRain: true,
   mood: "neon",
   accent: "#b7ff33",
   style: "cyber",
@@ -93,6 +106,8 @@ const moodPalettes = {
   cyan: { accent: "#33e6ff", warning: "#b7ff33" },
   magenta: { accent: "#ff4297", warning: "#33e6ff" },
   amber: { accent: "#ffb52e", warning: "#ff5f56" },
+  prismatic: { accent: "#a970ff", warning: "#33e6ff" },
+  oil: { accent: "#00d6ad", warning: "#d22cff" },
 };
 const visualStyleProfiles = {
   cyber: {
@@ -193,6 +208,271 @@ function applyColorMood() {
   moodSwatches.forEach((button) => {
     button.classList.toggle("active", button.dataset.mood === visualControls.mood);
   });
+  canvasWrap.dataset.mood = visualControls.mood;
+}
+
+function isPrismatic() {
+  return visualControls.mood === "prismatic" || visualControls.mood === "oil";
+}
+
+function isOilSlick() {
+  return visualControls.mood === "oil";
+}
+
+function prismaticColor(position, time, alpha = 1, offset = 0) {
+  if (isOilSlick()) {
+    const phase =
+      position * 9.5 +
+      time * 0.0011 +
+      Math.sin(position * 18 - time * 0.0007) * 1.6 +
+      offset * 0.025;
+    const hue =
+      (205 + Math.sin(phase) * 105 + Math.sin(phase * 0.43) * 54 + 360) % 360;
+    const saturation = 82 + Math.sin(phase * 1.7) * 12;
+    const lightness = 48 + Math.cos(phase * 0.78) * 13;
+    return `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
+  }
+
+  const hue = (time * 0.006 + position * 310 + offset) % 360;
+  const saturation = 88 + Math.sin(position * Math.PI * 2) * 7;
+  const lightness = 56 + Math.sin(time * 0.0018 + position * 8) * 7;
+  return `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`;
+}
+
+function prismaticGradient(context, x0, y0, x1, y1, time, alpha = 1) {
+  const gradient = context.createLinearGradient(x0, y0, x1, y1);
+  const step = isOilSlick() ? 0.125 : 0.2;
+  for (let stop = 0; stop <= 1; stop += step) {
+    gradient.addColorStop(stop, prismaticColor(stop, time, alpha));
+  }
+  return gradient;
+}
+
+function drawLiquidMembrane(width, height, energy, time) {
+  if (!isOilSlick() || reducedMotion) return;
+
+  const bass = frequencyData?.[4] / 255 || 0;
+  const mid = frequencyData?.[34] / 255 || 0;
+  const layers = 4;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  for (let layer = 0; layer < layers; layer += 1) {
+    const depth = layer / (layers - 1);
+    const baseline = height * (0.32 + depth * 0.15);
+    const amplitude =
+      height * (0.035 + energy * 0.08 + bass * 0.045) * (1 - depth * 0.2);
+    const speed = time * (0.00032 + layer * 0.000045);
+    const points = Math.max(48, Math.floor(width / 12));
+
+    ctx.beginPath();
+    for (let index = 0; index <= points; index += 1) {
+      const ratio = index / points;
+      const sampleIndex = Math.min(
+        waveformData.length - 1,
+        Math.floor(ratio * (waveformData.length - 1))
+      );
+      const audioRipple =
+        ((waveformData[sampleIndex] - 128) / 128) * amplitude * 0.42;
+      const broadWave =
+        Math.sin(ratio * Math.PI * (3.2 + layer * 0.75) + speed * 7) * amplitude;
+      const interference =
+        Math.cos(ratio * Math.PI * (7.5 - layer * 0.6) - speed * 4.2) *
+        amplitude *
+        (0.22 + mid * 0.32);
+      const x = ratio * width;
+      const y = baseline + broadWave + interference + audioRipple;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.lineTo(width, height * 0.74);
+    ctx.lineTo(0, height * 0.74);
+    ctx.closePath();
+
+    const liquid = ctx.createLinearGradient(
+      0,
+      baseline - amplitude,
+      width,
+      baseline + amplitude
+    );
+    for (let stop = 0; stop <= 1; stop += 0.125) {
+      liquid.addColorStop(
+        stop,
+        prismaticColor(
+          stop + depth * 0.18,
+          time,
+          0.025 + (1 - depth) * 0.035 + energy * 0.035
+        )
+      );
+    }
+    ctx.fillStyle = liquid;
+    ctx.shadowColor = prismaticColor(depth, time, 0.32);
+    ctx.shadowBlur = 18 + energy * 30;
+    ctx.fill();
+
+    ctx.globalAlpha = 0.18 + energy * 0.26;
+    ctx.strokeStyle = prismaticGradient(
+      ctx,
+      0,
+      0,
+      width,
+      0,
+      time + layer * 240,
+      0.72
+    );
+    ctx.lineWidth = 0.7 + (1 - depth) * 0.9;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  const lensX = width * (0.5 + Math.sin(time * 0.00036) * 0.24);
+  const lensY = height * (0.48 + Math.cos(time * 0.00029) * 0.12);
+  const lensRadius = Math.min(width, height) * (0.16 + energy * 0.08);
+  const lens = ctx.createRadialGradient(lensX, lensY, 0, lensX, lensY, lensRadius);
+  lens.addColorStop(0, prismaticColor(0.1, time, 0.12 + energy * 0.12));
+  lens.addColorStop(0.42, prismaticColor(0.48, time, 0.055));
+  lens.addColorStop(0.72, prismaticColor(0.82, time, 0.025));
+  lens.addColorStop(1, "transparent");
+  ctx.fillStyle = lens;
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+}
+
+function drawNeonLights(width, height, energy, time) {
+  if (!visualControls.neonLights || reducedMotion) return;
+
+  const style = getVisualStyle();
+  const beamEnergy = 0.15 + energy * 0.85;
+  const fixedColors = ["51, 230, 255", "255, 66, 151", "183, 255, 51"];
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  for (let index = 0; index < 3; index += 1) {
+    const phase = time * (0.00022 + index * 0.000035) + index * 2.1;
+    const startX = width * (0.18 + index * 0.31) + Math.sin(phase) * width * 0.08;
+    const endX = width * (0.82 - index * 0.27) + Math.cos(phase * 0.83) * width * 0.1;
+    const color = isPrismatic()
+      ? prismaticColor(index / 3, time, 1, index * 35)
+      : `rgb(${fixedColors[index]})`;
+    const beam = ctx.createLinearGradient(startX, 0, endX, height);
+    beam.addColorStop(0, "transparent");
+    beam.addColorStop(0.35, color);
+    beam.addColorStop(0.68, color);
+    beam.addColorStop(1, "transparent");
+
+    ctx.globalAlpha = (0.025 + energy * 0.055) * style.glow;
+    ctx.strokeStyle = beam;
+    ctx.lineWidth = 18 + energy * 26;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 34 + energy * 45;
+    ctx.beginPath();
+    ctx.moveTo(startX, -height * 0.08);
+    ctx.bezierCurveTo(
+      width * (0.25 + index * 0.18),
+      height * 0.28,
+      width * (0.75 - index * 0.17),
+      height * 0.68,
+      endX,
+      height * 1.08
+    );
+    ctx.stroke();
+
+    ctx.globalAlpha = (0.16 + energy * 0.3) * Math.min(style.glow, 1.2);
+    ctx.lineWidth = 0.65 + beamEnergy * 0.9;
+    ctx.shadowBlur = 12 + energy * 20;
+    ctx.stroke();
+  }
+
+  const edgeColorLeft = isPrismatic()
+    ? prismaticColor(0.16, time, 0.7)
+    : "rgba(51, 230, 255, 0.7)";
+  const edgeColorRight = isPrismatic()
+    ? prismaticColor(0.76, time, 0.7)
+    : "rgba(255, 66, 151, 0.7)";
+  const pulse = 0.18 + energy * 0.48;
+
+  ctx.globalAlpha = pulse;
+  ctx.lineWidth = 1;
+  ctx.shadowBlur = 18 + energy * 30;
+  ctx.strokeStyle = edgeColorLeft;
+  ctx.shadowColor = edgeColorLeft;
+  ctx.beginPath();
+  ctx.moveTo(1, height * 0.16);
+  ctx.lineTo(1, height * 0.84);
+  ctx.stroke();
+
+  ctx.strokeStyle = edgeColorRight;
+  ctx.shadowColor = edgeColorRight;
+  ctx.beginPath();
+  ctx.moveTo(width - 1, height * 0.16);
+  ctx.lineTo(width - 1, height * 0.84);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawColorRain(width, height, energy, time, deltaTime) {
+  if (!visualControls.colorRain || reducedMotion) return;
+
+  const style = getVisualStyle();
+  const density = Math.max(
+    12,
+    Math.floor(colorDrops.length * (0.35 + energy * 0.65) * style.overlayDensity)
+  );
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+
+  for (let index = 0; index < density; index += 1) {
+    const drop = colorDrops[index];
+    const magnitude =
+      frequencyData?.[Math.min(drop.band, frequencyData.length - 1)] / 255 || 0;
+    const velocity =
+      drop.speed * (0.55 + visualControls.motion * 0.65 + magnitude * 1.35);
+    drop.y += velocity * deltaTime * 0.0028;
+    if (drop.y > 1.15) {
+      drop.y = -0.15 - ((index * 19) % 20) / 100;
+      drop.x = (drop.x + 0.37 + magnitude * 0.11) % 1;
+    }
+
+    const x = drop.x * width + Math.sin(time * 0.00045 + index) * 5;
+    const y = drop.y * height;
+    const streakLength = drop.length * (0.65 + magnitude * 1.25);
+    const color = isPrismatic()
+      ? prismaticColor(drop.hue, time, 0.42 + magnitude * 0.46, index * 5)
+      : index % 3 === 0
+        ? `rgba(51, 230, 255, ${0.32 + magnitude * 0.46})`
+        : index % 3 === 1
+          ? `rgba(255, 66, 151, ${0.3 + magnitude * 0.44})`
+          : `rgba(${getThemeColor("--accent-rgb")}, ${0.3 + magnitude * 0.5})`;
+
+    const streak = ctx.createLinearGradient(x, y - streakLength, x, y + 2);
+    streak.addColorStop(0, "transparent");
+    streak.addColorStop(0.72, color);
+    streak.addColorStop(1, color);
+    ctx.strokeStyle = streak;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 4 + magnitude * 11;
+    ctx.lineWidth = drop.width + magnitude * 0.7;
+    ctx.globalAlpha = 0.3 + magnitude * 0.65;
+    ctx.beginPath();
+    ctx.moveTo(x, y - streakLength);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+
+    if (magnitude > 0.58) {
+      ctx.globalAlpha = (magnitude - 0.5) * 0.7;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(x, y + 1, 1.2 + magnitude, 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
 }
 
 function getVisualStyle() {
@@ -252,6 +532,20 @@ function drawVisualizerBackdrop(width, height, energy, time) {
   glow.addColorStop(1, "transparent");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, width, height);
+
+  if (isPrismatic()) {
+    const rainbowWash = prismaticGradient(
+      ctx,
+      0,
+      height * 0.2,
+      width,
+      height * 0.8,
+      time,
+      0.045 * intensity * energy
+    );
+    ctx.fillStyle = rainbowWash;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   // Two restrained color blooms add chromatic depth while preserving the
   // dashboard's primary green signal language.
@@ -337,7 +631,9 @@ function drawSignalNetwork(width, height, energy, time) {
         (1 - distance / connectionRange) *
         (0.03 + Math.min(nodeA.magnitude, nodeB.magnitude) * 0.18) *
         style.overlayDensity;
-      ctx.strokeStyle = `rgba(${accentRgb}, ${strength})`;
+      ctx.strokeStyle = isPrismatic()
+        ? prismaticColor((nodeA.x + nodeB.x) / (width * 2), time, strength)
+        : `rgba(${accentRgb}, ${strength})`;
       ctx.lineWidth = 0.45;
       ctx.beginPath();
       ctx.moveTo(nodeA.x, nodeA.y);
@@ -346,10 +642,16 @@ function drawSignalNetwork(width, height, energy, time) {
     }
   }
 
-  for (const node of positions) {
+  for (let index = 0; index < positions.length; index += 1) {
+    const node = positions[index];
     const radius = 0.7 + node.magnitude * 2.4;
-    ctx.fillStyle = `rgba(${accentRgb}, ${0.16 + node.magnitude * 0.68})`;
-    ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
+    const nodeColor = isPrismatic()
+      ? prismaticColor(index / positions.length, time, 0.16 + node.magnitude * 0.68)
+      : `rgba(${accentRgb}, ${0.16 + node.magnitude * 0.68})`;
+    ctx.fillStyle = nodeColor;
+    ctx.shadowColor = isPrismatic()
+      ? prismaticColor(index / positions.length, time, 0.8)
+      : `rgba(${accentRgb}, 0.8)`;
     ctx.shadowBlur = (5 + node.magnitude * 9) * style.glow;
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
@@ -378,11 +680,12 @@ function spawnParticles(width, height, energy) {
       vy: -(0.35 + Math.random() * 1.1) * (0.6 + energy),
       life: 1,
       size: 0.7 + Math.random() * 1.8,
+      hue: Math.random(),
     });
   }
 }
 
-function drawParticles(deltaTime) {
+function drawParticles(deltaTime, time) {
   const accentRgb = getThemeColor("--accent-rgb");
 
   ctx.save();
@@ -398,8 +701,12 @@ function drawParticles(deltaTime) {
       continue;
     }
 
-    ctx.fillStyle = `rgba(${accentRgb}, ${particle.life * 0.75})`;
-    ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
+    ctx.fillStyle = isPrismatic()
+      ? prismaticColor(particle.hue, time, particle.life * 0.75)
+      : `rgba(${accentRgb}, ${particle.life * 0.75})`;
+    ctx.shadowColor = isPrismatic()
+      ? prismaticColor(particle.hue, time, 0.8)
+      : `rgba(${accentRgb}, 0.8)`;
     ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -454,7 +761,7 @@ function detectBeat(time) {
   previousBassPulse += (bassPulse - previousBassPulse) * 0.22;
 }
 
-function drawShockwaves(width, height, deltaTime) {
+function drawShockwaves(width, height, deltaTime, time) {
   if (!visualControls.beatFx || !shockwaves.length) return;
 
   const accentRgb = getThemeColor("--accent-rgb");
@@ -472,7 +779,9 @@ function drawShockwaves(width, height, deltaTime) {
 
     const progress = 1 - wave.life;
     const radius = progress * Math.min(width, height) * 0.58;
-    ctx.strokeStyle = `rgba(${accentRgb}, ${wave.life * 0.34})`;
+    ctx.strokeStyle = isPrismatic()
+      ? prismaticColor(progress, time, wave.life * 0.34)
+      : `rgba(${accentRgb}, ${wave.life * 0.34})`;
     ctx.lineWidth = 0.8 + wave.life * 2.2;
     ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
     ctx.shadowBlur = 16;
@@ -511,9 +820,10 @@ function drawEnergyArcs(width, height, energy, time, deltaTime) {
     const radius = baseRadius * band.radius;
     const rotation = time * band.speed;
     const arcLength = Math.PI * (0.2 + magnitude * 0.56);
-    ctx.strokeStyle = `rgba(${band.color}, ${
-      (0.035 + magnitude * 0.17) * style.overlayDensity
-    })`;
+    const arcAlpha = (0.035 + magnitude * 0.17) * style.overlayDensity;
+    ctx.strokeStyle = isPrismatic()
+      ? prismaticColor(band.index / 100, time, arcAlpha)
+      : `rgba(${band.color}, ${arcAlpha})`;
     ctx.lineWidth = 0.6 + magnitude * 1.2;
     ctx.shadowColor = `rgba(${band.color}, 0.65)`;
     ctx.shadowBlur = (6 + magnitude * 8) * style.glow;
@@ -536,7 +846,9 @@ function drawEnergyArcs(width, height, energy, time, deltaTime) {
 
     const progress = 1 - burst.life;
     const radius = baseRadius * (0.58 + progress * 0.78);
-    ctx.strokeStyle = `rgba(${accentRgb}, ${burst.life * 0.34})`;
+    ctx.strokeStyle = isPrismatic()
+      ? prismaticColor(progress, time, burst.life * 0.34, burst.rotation * 30)
+      : `rgba(${accentRgb}, ${burst.life * 0.34})`;
     ctx.lineWidth = 0.8 + burst.life * 1.7;
     ctx.shadowColor = `rgba(${accentRgb}, 0.9)`;
     ctx.shadowBlur = 14;
@@ -588,6 +900,8 @@ function updateControlInterface() {
   motionControl.value = Math.round(visualControls.motion * 100);
   overlayToggle.checked = visualControls.overlays;
   beatFxToggle.checked = visualControls.beatFx;
+  neonLightsToggle.checked = visualControls.neonLights;
+  colorRainToggle.checked = visualControls.colorRain;
   applyColorMood();
   applyVisualStyle();
 
@@ -786,7 +1100,7 @@ async function startLiveCapture() {
   }
 }
 
-function drawFrequencyBars(width, height, energy) {
+function drawFrequencyBars(width, height, energy, time) {
   const style = getVisualStyle();
   const barCount = Math.max(24, Math.min(96, Math.floor(width / 9)));
   const gap = 3;
@@ -825,21 +1139,36 @@ function drawFrequencyBars(width, height, energy) {
     const barHeight = Math.max(2, magnitude * usableHeight);
     const x = index * (barWidth + gap);
     const y = baseline - barHeight;
+    const bandColor = isPrismatic()
+      ? prismaticColor(normalizedIndex, time, 1)
+      : getThemeColor("--accent");
+    const bandGlow = isPrismatic()
+      ? prismaticColor(normalizedIndex, time, 0.75)
+      : `rgba(${getThemeColor("--accent-rgb")}, 0.35)`;
+
+    if (isPrismatic()) {
+      ctx.fillStyle = bandColor;
+      ctx.strokeStyle = bandColor;
+      ctx.shadowColor = bandGlow;
+    }
 
     if (style.barMode === "wire") {
       ctx.globalAlpha = 0.72;
-      ctx.strokeStyle = getThemeColor("--accent");
+      ctx.strokeStyle = bandColor;
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, Math.max(1, barWidth), barHeight);
       ctx.globalAlpha = 1;
     } else if (style.barMode === "laser") {
-      ctx.strokeStyle = magnitude > 0.7 ? getThemeColor("--warning") : getThemeColor("--accent");
+      ctx.strokeStyle =
+        magnitude > 0.7 && !isPrismatic() ? getThemeColor("--warning") : bandColor;
       ctx.lineWidth = Math.max(1, barWidth * 0.24);
       ctx.beginPath();
       ctx.moveTo(x + barWidth / 2, baseline);
       ctx.lineTo(x + barWidth / 2, y);
       ctx.stroke();
-      ctx.fillStyle = getThemeColor("--warning");
+      ctx.fillStyle = isPrismatic()
+        ? prismaticColor(normalizedIndex + 0.08, time, 1)
+        : getThemeColor("--warning");
       ctx.fillRect(x + barWidth / 2 - 1, y - 1, 2, 2);
       ctx.fillStyle = gradient;
     } else if (style.barMode === "minimal") {
@@ -848,9 +1177,9 @@ function drawFrequencyBars(width, height, energy) {
       ctx.globalAlpha = 1;
     } else if (style.barMode === "aurora") {
       const aurora = ctx.createLinearGradient(0, baseline, 0, y);
-      aurora.addColorStop(0, getThemeColor("--accent"));
-      aurora.addColorStop(0.55, "#33e6ff");
-      aurora.addColorStop(1, "#ff4297");
+      aurora.addColorStop(0, isPrismatic() ? bandColor : getThemeColor("--accent"));
+      aurora.addColorStop(0.55, prismaticColor(normalizedIndex + 0.22, time, 1));
+      aurora.addColorStop(1, prismaticColor(normalizedIndex + 0.46, time, 1));
       ctx.fillStyle = aurora;
       ctx.beginPath();
       ctx.roundRect(x, y, Math.max(1, barWidth), barHeight, Math.min(4, barWidth / 2));
@@ -862,7 +1191,9 @@ function drawFrequencyBars(width, height, energy) {
 
     if (style.barMode !== "minimal") {
       peakCaps[index] = Math.min(peakCaps[index] + 0.7, y);
-      ctx.fillStyle = getThemeColor("--warning");
+      ctx.fillStyle = isPrismatic()
+        ? prismaticColor(normalizedIndex + 0.1, time, 1)
+        : getThemeColor("--warning");
       ctx.fillRect(x, peakCaps[index], Math.max(1, barWidth), 1.5);
       ctx.fillStyle = gradient;
     }
@@ -870,7 +1201,9 @@ function drawFrequencyBars(width, height, energy) {
     const reflectionHeight = barHeight * 0.22;
     if (style.reflection > 0) {
       ctx.globalAlpha = style.reflection;
-      ctx.fillStyle = reflection;
+      ctx.fillStyle = isPrismatic()
+        ? prismaticColor(normalizedIndex, time, 0.22)
+        : reflection;
       ctx.fillRect(x, baseline + 3, Math.max(1, barWidth), reflectionHeight);
       ctx.fillStyle = gradient;
       ctx.globalAlpha = 1;
@@ -899,7 +1232,7 @@ function traceWaveform(width, height, amplitude, offsetY) {
   }
 }
 
-function drawWaveform(width, height, energy) {
+function drawWaveform(width, height, energy, time) {
   const style = getVisualStyle();
   const accent = getThemeColor("--accent");
   const accentRgb = getThemeColor("--accent-rgb");
@@ -911,9 +1244,16 @@ function drawWaveform(width, height, energy) {
   ctx.lineTo(0, centerY);
   ctx.closePath();
   const fill = ctx.createLinearGradient(0, centerY - height * 0.3, 0, centerY + height * 0.3);
-  fill.addColorStop(0, `rgba(${accentRgb}, ${0.08 + energy * 0.16})`);
-  fill.addColorStop(0.5, `rgba(${accentRgb}, 0.015)`);
-  fill.addColorStop(1, `rgba(${accentRgb}, ${0.04 + energy * 0.08})`);
+  if (isPrismatic()) {
+    fill.addColorStop(0, prismaticColor(0.05, time, 0.08 + energy * 0.16));
+    fill.addColorStop(0.35, prismaticColor(0.35, time, 0.05));
+    fill.addColorStop(0.7, prismaticColor(0.7, time, 0.04));
+    fill.addColorStop(1, prismaticColor(0.95, time, 0.04 + energy * 0.08));
+  } else {
+    fill.addColorStop(0, `rgba(${accentRgb}, ${0.08 + energy * 0.16})`);
+    fill.addColorStop(0.5, `rgba(${accentRgb}, 0.015)`);
+    fill.addColorStop(1, `rgba(${accentRgb}, ${0.04 + energy * 0.08})`);
+  }
   ctx.fillStyle = fill;
   ctx.fill();
 
@@ -923,12 +1263,17 @@ function drawWaveform(width, height, energy) {
     { amplitude: 0.39, alpha: 0.16, width: 0.8, blur: 2 },
   ].slice(0, style.waveformLayers);
 
-  for (const trace of traces) {
+  for (let index = 0; index < traces.length; index += 1) {
+    const trace = traces[index];
     traceWaveform(width, height, trace.amplitude, centerY);
     ctx.globalAlpha = trace.alpha;
     ctx.lineWidth = trace.width;
-    ctx.strokeStyle = accent;
-    ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
+    ctx.strokeStyle = isPrismatic()
+      ? prismaticGradient(ctx, 0, 0, width, 0, time, trace.alpha)
+      : accent;
+    ctx.shadowColor = isPrismatic()
+      ? prismaticColor(index / traces.length, time, 0.8)
+      : `rgba(${accentRgb}, 0.8)`;
     ctx.shadowBlur = (trace.blur + energy * 10) * style.glow;
     ctx.stroke();
   }
@@ -970,7 +1315,9 @@ function drawOrbit(width, height, energy, time) {
     const outerX = Math.cos(angle) * (baseRadius + barLength);
     const outerY = Math.sin(angle) * (baseRadius + barLength);
 
-    ctx.strokeStyle = magnitude > 0.72 ? warning : accent;
+    ctx.strokeStyle = isPrismatic()
+      ? prismaticColor(index / bars, time, 1)
+      : magnitude > 0.72 ? warning : accent;
     ctx.globalAlpha = 0.2 + magnitude * 0.8;
     ctx.lineWidth = (width < 600 ? 1 : 1.5) *
       (style.barMode === "laser" ? 0.55 : style.barMode === "minimal" ? 0.7 : 1);
@@ -985,8 +1332,12 @@ function drawOrbit(width, height, energy, time) {
 
   ctx.save();
   ctx.translate(centerX, centerY);
-  ctx.strokeStyle = accent;
-  ctx.shadowColor = `rgba(${accentRgb}, 0.7)`;
+  ctx.strokeStyle = isPrismatic()
+    ? prismaticGradient(ctx, -baseRadius, 0, baseRadius, 0, time, 1)
+    : accent;
+  ctx.shadowColor = isPrismatic()
+    ? prismaticColor(0.5, time, 0.7)
+    : `rgba(${accentRgb}, 0.7)`;
   ctx.shadowBlur = 12;
   ctx.lineWidth = 1;
   ctx.globalAlpha = 0.3 + energy * 0.45;
@@ -1016,7 +1367,7 @@ function drawOrbit(width, height, energy, time) {
   ctx.arc(0, 0, baseRadius * 0.75, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = accent;
+  ctx.fillStyle = isPrismatic() ? prismaticColor(0.15, time, 1) : accent;
   ctx.shadowBlur = 20 + energy * 35;
   ctx.globalAlpha = 0.65 + energy * 0.35;
   ctx.beginPath();
@@ -1066,8 +1417,9 @@ function drawSpectrumField(width, height, energy, time) {
       else ctx.lineTo(x, y);
     }
 
-    ctx.strokeStyle =
-      depth > 0.82 && energy > 0.52
+    ctx.strokeStyle = isPrismatic()
+      ? prismaticColor(depth, time, alpha, row * 2)
+      : depth > 0.82 && energy > 0.52
         ? warning
         : `rgba(${accentRgb}, ${alpha})`;
     ctx.lineWidth = (0.55 + perspective * 1.15) *
@@ -1156,10 +1508,13 @@ function animate() {
     captureSpectrumHistory(now);
     detectBeat(visualTime);
     drawVisualizerBackdrop(width, height, visualEnergy, visualTime);
+    drawLiquidMembrane(width, height, visualEnergy, visualTime);
+    drawNeonLights(width, height, visualEnergy, visualTime);
+    drawColorRain(width, height, visualEnergy, visualTime, visualDelta);
     if (visualizationMode === "frequency") {
-      drawFrequencyBars(width, height, visualEnergy);
+      drawFrequencyBars(width, height, visualEnergy, visualTime);
     } else if (visualizationMode === "waveform") {
-      drawWaveform(width, height, visualEnergy);
+      drawWaveform(width, height, visualEnergy, visualTime);
     } else if (visualizationMode === "orbit") {
       drawOrbit(width, height, visualEnergy, visualTime);
     } else {
@@ -1169,8 +1524,8 @@ function animate() {
     drawSignalNetwork(width, height, visualEnergy, visualTime);
     drawEnergyArcs(width, height, visualEnergy, visualTime, visualDelta);
     spawnParticles(width, height, visualEnergy);
-    drawParticles(visualDelta);
-    drawShockwaves(width, height, visualDelta);
+    drawParticles(visualDelta, visualTime);
+    drawShockwaves(width, height, visualDelta, visualTime);
     updateMetrics();
     canvasWrap.style.setProperty("--energy", visualEnergy.toFixed(3));
     canvasWrap.style.setProperty("--energy-haze", (visualEnergy * 0.16).toFixed(3));
@@ -1254,6 +1609,16 @@ beatFxToggle.addEventListener("change", () => {
     shockwaves.length = 0;
     arcBursts.length = 0;
   }
+  saveVisualControls();
+});
+
+neonLightsToggle.addEventListener("change", () => {
+  visualControls.neonLights = neonLightsToggle.checked;
+  saveVisualControls();
+});
+
+colorRainToggle.addEventListener("change", () => {
+  visualControls.colorRain = colorRainToggle.checked;
   saveVisualControls();
 });
 

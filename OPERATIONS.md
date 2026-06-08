@@ -128,7 +128,14 @@ Use the manual control deck to adjust the presentation:
 - **Motion:** changes procedural animation speed; `0%` freezes motion.
 - **Ambient overlays:** shows or hides nodes, filaments, particles, and arcs.
 - **Beat effects:** shows or hides transient shockwaves and beat bursts.
-- **Color mood:** selects Neon, Cyan, Magenta, Amber, or a custom color.
+- **Neon lights:** shows or hides moving audio-reactive beams, ribbons, and
+  illuminated canvas edges.
+- **Color rain:** shows or hides multicolor droplets that fall at varied speeds
+  and react independently to frequency bands.
+- **Color mood:** selects Neon, Cyan, Magenta, Amber, Prismatic, Oil Slick, or
+  a custom color. Prismatic shows multiple continuously shifting hues
+  simultaneously. Oil Slick adds shifting interference colors and an
+  audio-reactive liquid membrane behind every visualization mode.
 - **Visual style:** selects Cyber, Hologram, Laser, Minimal, or Aurora.
 - **Reset:** restores all default control values.
 
@@ -333,6 +340,7 @@ Run this checklist after changing the application:
 - [ ] Manual sliders update their values and visual response.
 - [ ] Overlay and beat toggles independently disable their effects.
 - [ ] Mood presets and the custom picker recolor the complete interface.
+- [ ] Prismatic displays several changing colors within every visualization.
 - [ ] All five visual styles render in BARS, WAVE, ORBIT, and FIELD.
 - [ ] Reset restores `100/82/100/100`, Neon, Cyber, and both toggles.
 - [ ] Fullscreen mode opens and exits without stretching the canvas.

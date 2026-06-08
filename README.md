@@ -24,7 +24,10 @@ inside the browser. Uploaded files are not sent to a server.
 - Subtle cyan and magenta chromatic bloom
 - Manual sensitivity, smoothing, intensity, and motion controls
 - Independent ambient-overlay and beat-effect toggles
-- Neon, cyan, magenta, amber, and custom color moods
+- Optional audio-reactive neon beams, ribbons, and illuminated canvas edges
+- Multi-speed color rain with frequency-reactive density, streaks, and droplets
+- Neon, cyan, magenta, amber, custom, animated Prismatic, and Oil Slick color moods
+- Audio-reactive liquid membrane with flowing interference colors in Oil Slick mode
 - Five canvas rendering styles: Cyber, Hologram, Laser, Minimal, and Aurora
 - Locally persisted visual preferences with one-click reset
 - Fullscreen presentation mode
@@ -131,6 +134,11 @@ The five styles are:
 - **Laser:** narrow high-energy beams with bright frequency peaks.
 - **Minimal:** restrained lines, almost no glow, and reduced overlays.
 - **Aurora:** rounded gradient bars with cyan and magenta layering.
+
+**Prismatic** is the multicolor mode. It maps different hues to different
+frequency positions at the same time, then slowly rotates the palette. Bars,
+wave layers, orbit spokes, spectral-field rows, particles, nodes, arcs, and
+beat pulses all receive coordinated but distinct colors.
 
 Settings are saved in browser local storage. Select **Reset** to restore the
 default values, Neon mood, and Cyber style.

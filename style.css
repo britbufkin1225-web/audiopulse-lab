@@ -894,6 +894,63 @@ canvas {
   --swatch: #ffb52e;
 }
 
+.mood-swatch[data-mood="prismatic"] {
+  --swatch: conic-gradient(
+    from 45deg,
+    #ff426f,
+    #ffb52e,
+    #b7ff33,
+    #33e6ff,
+    #955cff,
+    #ff4297,
+    #ff426f
+  );
+  animation: prismatic-spin 8s linear infinite;
+}
+
+.mood-swatch[data-mood="prismatic"].active {
+  box-shadow:
+    0 0 8px rgba(51, 230, 255, 0.45),
+    0 0 13px rgba(255, 66, 151, 0.28);
+}
+
+.mood-swatch[data-mood="oil"] {
+  --swatch: conic-gradient(
+    from 210deg,
+    #070916,
+    #2355ff,
+    #00d6ad,
+    #e4ff36,
+    #ff7a18,
+    #d22cff,
+    #090b18
+  );
+  animation: oil-shimmer 6s ease-in-out infinite alternate;
+}
+
+.mood-swatch[data-mood="oil"].active {
+  box-shadow:
+    0 0 8px rgba(0, 214, 173, 0.45),
+    0 0 14px rgba(210, 44, 255, 0.32);
+}
+
+@keyframes prismatic-spin {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes oil-shimmer {
+  from {
+    filter: hue-rotate(-18deg) saturate(1.15);
+    transform: rotate(-5deg);
+  }
+  to {
+    filter: hue-rotate(38deg) saturate(1.45);
+    transform: rotate(5deg);
+  }
+}
+
 .custom-color {
   position: relative;
   color: var(--text);

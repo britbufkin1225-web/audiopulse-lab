@@ -129,6 +129,7 @@ Use the manual control deck to adjust the presentation:
 - **Ambient overlays:** shows or hides nodes, filaments, particles, and arcs.
 - **Beat effects:** shows or hides transient shockwaves and beat bursts.
 - **Color mood:** selects Neon, Cyan, Magenta, Amber, or a custom color.
+- **Visual style:** selects Cyber, Hologram, Laser, Minimal, or Aurora.
 - **Reset:** restores all default control values.
 
 Control values are stored locally in the browser and restored on the next
@@ -332,7 +333,8 @@ Run this checklist after changing the application:
 - [ ] Manual sliders update their values and visual response.
 - [ ] Overlay and beat toggles independently disable their effects.
 - [ ] Mood presets and the custom picker recolor the complete interface.
-- [ ] Reset restores `100/82/100/100`, Neon mood, and both toggles.
+- [ ] All five visual styles render in BARS, WAVE, ORBIT, and FIELD.
+- [ ] Reset restores `100/82/100/100`, Neon, Cyber, and both toggles.
 - [ ] Fullscreen mode opens and exits without stretching the canvas.
 - [ ] Bass energy updates.
 - [ ] Peak level updates and the warning indicator can activate.

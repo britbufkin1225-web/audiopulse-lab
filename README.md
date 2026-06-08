@@ -25,6 +25,7 @@ inside the browser. Uploaded files are not sent to a server.
 - Manual sensitivity, smoothing, intensity, and motion controls
 - Independent ambient-overlay and beat-effect toggles
 - Neon, cyan, magenta, amber, and custom color moods
+- Five canvas rendering styles: Cyber, Hologram, Laser, Minimal, and Aurora
 - Locally persisted visual preferences with one-click reset
 - Fullscreen presentation mode
 - Beat-reactive glow, particles, scan line, and signal HUD
@@ -121,9 +122,18 @@ The control deck applies to local files and live tab capture:
 | Ambient overlays | Toggles nodes, filaments, particles, and energy arcs |
 | Beat effects | Toggles beat-triggered shockwaves and arc bursts |
 | Color mood | Applies a preset or custom accent across the complete dashboard |
+| Visual style | Changes geometry, glow, reflections, layering, and overlay density |
+
+The five styles are:
+
+- **Cyber:** solid bars, peak caps, reflections, and full overlays.
+- **Hologram:** wireframe bars, finer glow, and stronger scan treatment.
+- **Laser:** narrow high-energy beams with bright frequency peaks.
+- **Minimal:** restrained lines, almost no glow, and reduced overlays.
+- **Aurora:** rounded gradient bars with cyan and magenta layering.
 
 Settings are saved in browser local storage. Select **Reset** to restore the
-default values and Neon mood.
+default values, Neon mood, and Cyber style.
 
 ### Analyze YouTube or Another Music App
 

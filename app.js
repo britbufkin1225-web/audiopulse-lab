@@ -27,6 +27,7 @@ const beatFxToggle = document.querySelector("#beatFxToggle");
 const resetControls = document.querySelector("#resetControls");
 const customColor = document.querySelector("#customColor");
 const moodSwatches = document.querySelectorAll(".mood-swatch");
+const styleOptions = document.querySelectorAll(".style-option");
 
 const fileName = document.querySelector("#fileName");
 const fileType = document.querySelector("#fileType");
@@ -84,6 +85,7 @@ const controlDefaults = {
   beatFx: true,
   mood: "neon",
   accent: "#b7ff33",
+  style: "cyber",
 };
 let visualControls = { ...controlDefaults };
 const moodPalettes = {
@@ -91,6 +93,43 @@ const moodPalettes = {
   cyan: { accent: "#33e6ff", warning: "#b7ff33" },
   magenta: { accent: "#ff4297", warning: "#33e6ff" },
   amber: { accent: "#ffb52e", warning: "#ff5f56" },
+};
+const visualStyleProfiles = {
+  cyber: {
+    barMode: "solid",
+    glow: 1,
+    reflection: 1,
+    waveformLayers: 3,
+    overlayDensity: 1,
+  },
+  hologram: {
+    barMode: "wire",
+    glow: 0.62,
+    reflection: 0.25,
+    waveformLayers: 2,
+    overlayDensity: 0.72,
+  },
+  laser: {
+    barMode: "laser",
+    glow: 1.55,
+    reflection: 0,
+    waveformLayers: 1,
+    overlayDensity: 0.48,
+  },
+  minimal: {
+    barMode: "minimal",
+    glow: 0.12,
+    reflection: 0,
+    waveformLayers: 1,
+    overlayDensity: 0.08,
+  },
+  aurora: {
+    barMode: "aurora",
+    glow: 1.2,
+    reflection: 0.55,
+    waveformLayers: 3,
+    overlayDensity: 0.82,
+  },
 };
 
 const formatTime = (seconds) => {
@@ -153,6 +192,17 @@ function applyColorMood() {
 
   moodSwatches.forEach((button) => {
     button.classList.toggle("active", button.dataset.mood === visualControls.mood);
+  });
+}
+
+function getVisualStyle() {
+  return visualStyleProfiles[visualControls.style] || visualStyleProfiles.cyber;
+}
+
+function applyVisualStyle() {
+  canvasWrap.dataset.style = visualControls.style;
+  styleOptions.forEach((button) => {
+    button.classList.toggle("active", button.dataset.style === visualControls.style);
   });
 }
 
@@ -256,6 +306,7 @@ function drawSignalNetwork(width, height, energy, time) {
   if (reducedMotion || !visualControls.overlays || energy < 0.08) return;
 
   const accentRgb = getThemeColor("--accent-rgb");
+  const style = getVisualStyle();
   const positions = signalNodes.map((node) => {
     const dataIndex = Math.min(
       frequencyData.length - 1,
@@ -279,12 +330,13 @@ function drawSignalNetwork(width, height, energy, time) {
       const nodeA = positions[first];
       const nodeB = positions[second];
       const distance = Math.hypot(nodeA.x - nodeB.x, nodeA.y - nodeB.y);
-      const connectionRange = 105 + energy * 70;
+      const connectionRange = (105 + energy * 70) * style.overlayDensity;
       if (distance > connectionRange) continue;
 
       const strength =
         (1 - distance / connectionRange) *
-        (0.03 + Math.min(nodeA.magnitude, nodeB.magnitude) * 0.18);
+        (0.03 + Math.min(nodeA.magnitude, nodeB.magnitude) * 0.18) *
+        style.overlayDensity;
       ctx.strokeStyle = `rgba(${accentRgb}, ${strength})`;
       ctx.lineWidth = 0.45;
       ctx.beginPath();
@@ -298,7 +350,7 @@ function drawSignalNetwork(width, height, energy, time) {
     const radius = 0.7 + node.magnitude * 2.4;
     ctx.fillStyle = `rgba(${accentRgb}, ${0.16 + node.magnitude * 0.68})`;
     ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
-    ctx.shadowBlur = 5 + node.magnitude * 9;
+    ctx.shadowBlur = (5 + node.magnitude * 9) * style.glow;
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
     ctx.fill();
@@ -315,7 +367,9 @@ function spawnParticles(width, height, energy) {
     particles.length > 70
   ) return;
 
-  const spawnCount = energy > 0.62 ? 3 : 1;
+  const style = getVisualStyle();
+  if (Math.random() > style.overlayDensity) return;
+  const spawnCount = energy > 0.62 && style.overlayDensity > 0.5 ? 3 : 1;
   for (let index = 0; index < spawnCount; index += 1) {
     particles.push({
       x: width * (0.12 + Math.random() * 0.76),
@@ -433,6 +487,8 @@ function drawShockwaves(width, height, deltaTime) {
 function drawEnergyArcs(width, height, energy, time, deltaTime) {
   if (!visualControls.overlays) return;
   const accentRgb = getThemeColor("--accent-rgb");
+  const style = getVisualStyle();
+  if (style.overlayDensity < 0.1) return;
   const centerX = width / 2;
   const centerY = height / 2;
   const baseRadius = Math.min(width, height) * 0.34;
@@ -455,10 +511,12 @@ function drawEnergyArcs(width, height, energy, time, deltaTime) {
     const radius = baseRadius * band.radius;
     const rotation = time * band.speed;
     const arcLength = Math.PI * (0.2 + magnitude * 0.56);
-    ctx.strokeStyle = `rgba(${band.color}, ${0.035 + magnitude * 0.17})`;
+    ctx.strokeStyle = `rgba(${band.color}, ${
+      (0.035 + magnitude * 0.17) * style.overlayDensity
+    })`;
     ctx.lineWidth = 0.6 + magnitude * 1.2;
     ctx.shadowColor = `rgba(${band.color}, 0.65)`;
-    ctx.shadowBlur = 6 + magnitude * 8;
+    ctx.shadowBlur = (6 + magnitude * 8) * style.glow;
     ctx.beginPath();
     ctx.arc(0, 0, radius, rotation, rotation + arcLength);
     ctx.stroke();
@@ -531,6 +589,7 @@ function updateControlInterface() {
   overlayToggle.checked = visualControls.overlays;
   beatFxToggle.checked = visualControls.beatFx;
   applyColorMood();
+  applyVisualStyle();
 
   sensitivityValue.textContent = `${sensitivityControl.value}%`;
   smoothingValue.textContent = `${smoothingControl.value}%`;
@@ -728,6 +787,7 @@ async function startLiveCapture() {
 }
 
 function drawFrequencyBars(width, height, energy) {
+  const style = getVisualStyle();
   const barCount = Math.max(24, Math.min(96, Math.floor(width / 9)));
   const gap = 3;
   const barWidth = (width - gap * (barCount - 1)) / barCount;
@@ -754,7 +814,7 @@ function drawFrequencyBars(width, height, energy) {
   ctx.save();
   ctx.fillStyle = gradient;
   ctx.shadowColor = `rgba(${getThemeColor("--accent-rgb")}, 0.35)`;
-  ctx.shadowBlur = 9 + energy * 15;
+  ctx.shadowBlur = (9 + energy * 15) * style.glow;
 
   for (let index = 0; index < barCount; index += 1) {
     // A curved index gives extra screen space to bass and mids, where most
@@ -766,17 +826,55 @@ function drawFrequencyBars(width, height, energy) {
     const x = index * (barWidth + gap);
     const y = baseline - barHeight;
 
-    ctx.fillRect(x, y, Math.max(1, barWidth), barHeight);
+    if (style.barMode === "wire") {
+      ctx.globalAlpha = 0.72;
+      ctx.strokeStyle = getThemeColor("--accent");
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, Math.max(1, barWidth), barHeight);
+      ctx.globalAlpha = 1;
+    } else if (style.barMode === "laser") {
+      ctx.strokeStyle = magnitude > 0.7 ? getThemeColor("--warning") : getThemeColor("--accent");
+      ctx.lineWidth = Math.max(1, barWidth * 0.24);
+      ctx.beginPath();
+      ctx.moveTo(x + barWidth / 2, baseline);
+      ctx.lineTo(x + barWidth / 2, y);
+      ctx.stroke();
+      ctx.fillStyle = getThemeColor("--warning");
+      ctx.fillRect(x + barWidth / 2 - 1, y - 1, 2, 2);
+      ctx.fillStyle = gradient;
+    } else if (style.barMode === "minimal") {
+      ctx.globalAlpha = 0.72;
+      ctx.fillRect(x, y, Math.max(1, barWidth), barHeight);
+      ctx.globalAlpha = 1;
+    } else if (style.barMode === "aurora") {
+      const aurora = ctx.createLinearGradient(0, baseline, 0, y);
+      aurora.addColorStop(0, getThemeColor("--accent"));
+      aurora.addColorStop(0.55, "#33e6ff");
+      aurora.addColorStop(1, "#ff4297");
+      ctx.fillStyle = aurora;
+      ctx.beginPath();
+      ctx.roundRect(x, y, Math.max(1, barWidth), barHeight, Math.min(4, barWidth / 2));
+      ctx.fill();
+      ctx.fillStyle = gradient;
+    } else {
+      ctx.fillRect(x, y, Math.max(1, barWidth), barHeight);
+    }
 
-    peakCaps[index] = Math.min(peakCaps[index] + 0.7, y);
-    ctx.fillStyle = getThemeColor("--warning");
-    ctx.fillRect(x, peakCaps[index], Math.max(1, barWidth), 1.5);
-    ctx.fillStyle = gradient;
+    if (style.barMode !== "minimal") {
+      peakCaps[index] = Math.min(peakCaps[index] + 0.7, y);
+      ctx.fillStyle = getThemeColor("--warning");
+      ctx.fillRect(x, peakCaps[index], Math.max(1, barWidth), 1.5);
+      ctx.fillStyle = gradient;
+    }
 
     const reflectionHeight = barHeight * 0.22;
-    ctx.fillStyle = reflection;
-    ctx.fillRect(x, baseline + 3, Math.max(1, barWidth), reflectionHeight);
-    ctx.fillStyle = gradient;
+    if (style.reflection > 0) {
+      ctx.globalAlpha = style.reflection;
+      ctx.fillStyle = reflection;
+      ctx.fillRect(x, baseline + 3, Math.max(1, barWidth), reflectionHeight);
+      ctx.fillStyle = gradient;
+      ctx.globalAlpha = 1;
+    }
   }
 
   ctx.strokeStyle = `rgba(${getThemeColor("--accent-rgb")}, ${0.16 + energy * 0.3})`;
@@ -802,6 +900,7 @@ function traceWaveform(width, height, amplitude, offsetY) {
 }
 
 function drawWaveform(width, height, energy) {
+  const style = getVisualStyle();
   const accent = getThemeColor("--accent");
   const accentRgb = getThemeColor("--accent-rgb");
   const centerY = height * 0.5;
@@ -822,7 +921,7 @@ function drawWaveform(width, height, energy) {
     { amplitude: 0.32, alpha: 1, width: 2.1, blur: 16 },
     { amplitude: 0.255, alpha: 0.35, width: 1, blur: 5 },
     { amplitude: 0.39, alpha: 0.16, width: 0.8, blur: 2 },
-  ];
+  ].slice(0, style.waveformLayers);
 
   for (const trace of traces) {
     traceWaveform(width, height, trace.amplitude, centerY);
@@ -830,7 +929,7 @@ function drawWaveform(width, height, energy) {
     ctx.lineWidth = trace.width;
     ctx.strokeStyle = accent;
     ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
-    ctx.shadowBlur = trace.blur + energy * 10;
+    ctx.shadowBlur = (trace.blur + energy * 10) * style.glow;
     ctx.stroke();
   }
 
@@ -846,6 +945,7 @@ function drawWaveform(width, height, energy) {
 }
 
 function drawOrbit(width, height, energy, time) {
+  const style = getVisualStyle();
   const centerX = width / 2;
   const centerY = height / 2;
   const accent = getThemeColor("--accent");
@@ -872,9 +972,10 @@ function drawOrbit(width, height, energy, time) {
 
     ctx.strokeStyle = magnitude > 0.72 ? warning : accent;
     ctx.globalAlpha = 0.2 + magnitude * 0.8;
-    ctx.lineWidth = width < 600 ? 1 : 1.5;
+    ctx.lineWidth = (width < 600 ? 1 : 1.5) *
+      (style.barMode === "laser" ? 0.55 : style.barMode === "minimal" ? 0.7 : 1);
     ctx.shadowColor = `rgba(${accentRgb}, 0.7)`;
-    ctx.shadowBlur = 4 + magnitude * 10;
+    ctx.shadowBlur = (4 + magnitude * 10) * style.glow;
     ctx.beginPath();
     ctx.moveTo(innerX, innerY);
     ctx.lineTo(outerX, outerY);
@@ -925,6 +1026,7 @@ function drawOrbit(width, height, energy, time) {
 }
 
 function drawSpectrumField(width, height, energy, time) {
+  const style = getVisualStyle();
   const accentRgb = getThemeColor("--accent-rgb");
   const warning = getThemeColor("--warning");
   const rows = spectrumHistory.length;
@@ -968,9 +1070,10 @@ function drawSpectrumField(width, height, energy, time) {
       depth > 0.82 && energy > 0.52
         ? warning
         : `rgba(${accentRgb}, ${alpha})`;
-    ctx.lineWidth = 0.55 + perspective * 1.15;
+    ctx.lineWidth = (0.55 + perspective * 1.15) *
+      (style.barMode === "laser" ? 0.65 : 1);
     ctx.shadowColor = `rgba(${accentRgb}, 0.65)`;
-    ctx.shadowBlur = perspective * (4 + energy * 8);
+    ctx.shadowBlur = perspective * (4 + energy * 8) * style.glow;
     ctx.stroke();
   }
 
@@ -1159,6 +1262,14 @@ moodSwatches.forEach((button) => {
     visualControls.mood = button.dataset.mood;
     visualControls.accent = moodPalettes[visualControls.mood].accent;
     applyColorMood();
+    saveVisualControls();
+  });
+});
+
+styleOptions.forEach((button) => {
+  button.addEventListener("click", () => {
+    visualControls.style = button.dataset.style;
+    applyVisualStyle();
     saveVisualControls();
   });
 });

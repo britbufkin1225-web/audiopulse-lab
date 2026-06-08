@@ -86,6 +86,8 @@ position, and the right value shows total duration.
 
 - Select **BARS** to view the frequency spectrum.
 - Select **WAVE** to view the time-domain waveform.
+- Select **ORBIT** to view the circular spectrum, waveform ring, and
+  beat-reactive core.
 
 Changing modes does not interrupt playback.
 
@@ -258,6 +260,7 @@ Run this checklist after changing the application:
 - [ ] The timeline advances and seeking works.
 - [ ] Frequency bars react to audio.
 - [ ] Waveform mode draws a continuous line.
+- [ ] Orbit mode draws a reactive circular spectrum.
 - [ ] Bass energy updates.
 - [ ] Peak level updates and the warning indicator can activate.
 - [ ] A second file replaces the first cleanly.
@@ -335,4 +338,3 @@ If a change breaks the app:
 6. Use Git history to identify the last working commit.
 
 Do not discard uncommitted work until it has been reviewed or backed up.
-

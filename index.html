@@ -65,11 +65,17 @@
             <div class="mode-switch" aria-label="Visualization mode">
               <button class="mode-button active" type="button" data-mode="frequency">BARS</button>
               <button class="mode-button" type="button" data-mode="waveform">WAVE</button>
+              <button class="mode-button" type="button" data-mode="orbit">ORBIT</button>
             </div>
           </div>
 
-          <div class="canvas-wrap">
+          <div class="canvas-wrap" data-mode="frequency">
             <canvas id="visualizer" aria-label="Animated audio visualization"></canvas>
+            <div class="signal-hud" aria-hidden="true">
+              <span>FFT 2048</span>
+              <span id="visualFps">60 FPS</span>
+            </div>
+            <div class="scan-line" aria-hidden="true"></div>
             <div class="canvas-empty" id="canvasEmpty">
               <span class="empty-icon" aria-hidden="true">
                 <i></i><i></i><i></i><i></i><i></i>

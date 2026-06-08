@@ -279,6 +279,15 @@ footer {
 .visualizer-panel {
   min-width: 0;
   padding: 25px 25px 18px;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.visualizer-panel.signal-active {
+  border-color: rgba(var(--accent-rgb), var(--energy-alpha, 0.12));
+  box-shadow:
+    var(--shadow),
+    0 0 var(--energy-glow, 16px)
+      rgba(var(--accent-rgb), var(--energy-shadow, 0));
 }
 
 .panel-header {
@@ -332,12 +341,80 @@ footer {
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 40px 40px;
+  isolation: isolate;
+}
+
+.canvas-wrap::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 50% 55%,
+      rgba(var(--accent-rgb), var(--energy-haze, 0)),
+      transparent 55%
+    ),
+    linear-gradient(180deg, transparent, rgba(var(--accent-rgb), 0.025));
+  content: "";
+  transition: background 80ms linear;
+}
+
+.canvas-wrap::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(var(--accent-rgb), 0.04);
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 3px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+  content: "";
+  pointer-events: none;
 }
 
 canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.signal-hud {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  display: flex;
+  justify-content: space-between;
+  color: rgba(var(--accent-rgb), 0.48);
+  font-family: "DM Mono", monospace;
+  font-size: 6px;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+
+.scan-line {
+  position: absolute;
+  z-index: 2;
+  top: -20%;
+  right: 0;
+  left: 0;
+  height: 18%;
+  opacity: 0;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(var(--accent-rgb), 0.06),
+    rgba(var(--accent-rgb), 0.18),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.signal-active .scan-line {
+  opacity: 1;
+  animation: signal-scan 4.5s linear infinite;
 }
 
 .canvas-empty {
@@ -402,6 +479,20 @@ canvas {
   font-family: "DM Mono", monospace;
   font-size: 7px;
   pointer-events: none;
+}
+
+.canvas-wrap:not([data-mode="frequency"]) .frequency-scale {
+  opacity: 0;
+}
+
+@keyframes signal-scan {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(760%);
+  }
 }
 
 .metrics {
@@ -752,5 +843,9 @@ footer {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .scan-line {
+    display: none;
   }
 }

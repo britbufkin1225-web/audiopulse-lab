@@ -13,7 +13,10 @@ inside the browser. Uploaded files are not sent to a server.
 - Local audio upload for formats supported by the browser
 - Play, pause, and timeline seeking
 - Animated frequency bars rendered on an HTML canvas
-- Time-domain waveform visualization
+- Mirrored spectrum reflections with falling peak caps
+- Layered time-domain waveform visualization
+- Circular Orbit mode with radial spectrum and waveform rings
+- Beat-reactive glow, particles, scan line, and signal HUD
 - Bass-energy analysis across approximately 20-250 Hz
 - Peak-level estimate in decibels
 - File name, type, size, and duration metadata
@@ -89,7 +92,8 @@ See [OPERATIONS.md](OPERATIONS.md) for complete user instructions.
 2. Choose an audio file from the local device.
 3. Review the detected file metadata.
 4. Press the main play button to begin playback and analysis.
-5. Select **BARS** for the frequency spectrum or **WAVE** for the waveform.
+5. Select **BARS** for the spectrum, **WAVE** for the waveform, or **ORBIT**
+   for the circular signal display.
 6. Drag the timeline to seek through the track.
 7. Use the theme button in the upper-right corner to switch themes.
 
@@ -274,4 +278,3 @@ Suggested manual verification:
 
 No license has been added. Copyright remains with the repository owner unless a
 license is added later.
-

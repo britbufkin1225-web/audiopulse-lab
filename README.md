@@ -16,6 +16,9 @@ inside the browser. Uploaded files are not sent to a server.
 - Mirrored spectrum reflections with falling peak caps
 - Layered time-domain waveform visualization
 - Circular Orbit mode with radial spectrum and waveform rings
+- 3D-style Field mode with scrolling frequency history and depth fog
+- Beat-triggered shockwaves shared across visualization modes
+- Fullscreen presentation mode
 - Beat-reactive glow, particles, scan line, and signal HUD
 - Bass-energy analysis across approximately 20-250 Hz
 - Peak-level estimate in decibels
@@ -92,10 +95,10 @@ See [OPERATIONS.md](OPERATIONS.md) for complete user instructions.
 2. Choose an audio file from the local device.
 3. Review the detected file metadata.
 4. Press the main play button to begin playback and analysis.
-5. Select **BARS** for the spectrum, **WAVE** for the waveform, or **ORBIT**
-   for the circular signal display.
-6. Drag the timeline to seek through the track.
-7. Use the theme button in the upper-right corner to switch themes.
+5. Select **BARS**, **WAVE**, **ORBIT**, or **FIELD** for the preferred display.
+6. Use the expand button to present the visualizer in fullscreen.
+7. Drag the timeline to seek through the track.
+8. Use the theme button in the upper-right corner to switch themes.
 
 AudioContext initialization happens after the play button is pressed because
 modern browsers require a user gesture before audio can start.

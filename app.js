@@ -8,6 +8,9 @@ const ctx = canvas.getContext("2d");
 const visualizerPanel = document.querySelector(".visualizer-panel");
 const canvasWrap = document.querySelector(".canvas-wrap");
 const visualFps = document.querySelector("#visualFps");
+const visualModeLabel = document.querySelector("#visualModeLabel");
+const expandVisualizer = document.querySelector("#expandVisualizer");
+const exitFullscreen = document.querySelector("#exitFullscreen");
 
 const fileName = document.querySelector("#fileName");
 const fileType = document.querySelector("#fileType");
@@ -38,7 +41,12 @@ let lastFrameTime = performance.now();
 let fpsSampleTime = performance.now();
 let fpsFrames = 0;
 let peakCaps = [];
+let lastHistoryCapture = 0;
+let previousBassPulse = 0;
+let lastBeatTime = 0;
 const particles = [];
+const spectrumHistory = [];
+const shockwaves = [];
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const formatTime = (seconds) => {
@@ -149,6 +157,76 @@ function drawParticles(deltaTime) {
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.restore();
+}
+
+function captureSpectrumHistory(time) {
+  if (time - lastHistoryCapture < 58) return;
+
+  const points = 64;
+  const snapshot = new Float32Array(points);
+  for (let index = 0; index < points; index += 1) {
+    const normalizedIndex = index / (points - 1);
+    const dataIndex = Math.floor(
+      Math.pow(normalizedIndex, 1.9) * (frequencyData.length * 0.72)
+    );
+    snapshot[index] = frequencyData[Math.min(dataIndex, frequencyData.length - 1)] / 255;
+  }
+
+  spectrumHistory.unshift(snapshot);
+  if (spectrumHistory.length > 34) spectrumHistory.pop();
+  lastHistoryCapture = time;
+}
+
+function detectBeat(time) {
+  if (!audioContext || !frequencyData?.length) return;
+
+  const binWidth = audioContext.sampleRate / analyser.fftSize;
+  const lastBeatBin = Math.min(frequencyData.length - 1, Math.ceil(180 / binWidth));
+  let bassTotal = 0;
+
+  for (let index = 1; index <= lastBeatBin; index += 1) {
+    bassTotal += frequencyData[index];
+  }
+
+  const bassPulse = bassTotal / lastBeatBin / 255;
+  const transient = bassPulse - previousBassPulse;
+  if (bassPulse > 0.48 && transient > 0.055 && time - lastBeatTime > 190) {
+    shockwaves.push({ life: 1, strength: bassPulse });
+    if (shockwaves.length > 5) shockwaves.shift();
+    lastBeatTime = time;
+  }
+
+  previousBassPulse += (bassPulse - previousBassPulse) * 0.22;
+}
+
+function drawShockwaves(width, height, deltaTime) {
+  if (!shockwaves.length) return;
+
+  const accentRgb = getThemeColor("--accent-rgb");
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.globalCompositeOperation = "lighter";
+
+  for (let index = shockwaves.length - 1; index >= 0; index -= 1) {
+    const wave = shockwaves[index];
+    wave.life -= 0.018 * deltaTime;
+    if (wave.life <= 0) {
+      shockwaves.splice(index, 1);
+      continue;
+    }
+
+    const progress = 1 - wave.life;
+    const radius = progress * Math.min(width, height) * 0.58;
+    ctx.strokeStyle = `rgba(${accentRgb}, ${wave.life * 0.34})`;
+    ctx.lineWidth = 0.8 + wave.life * 2.2;
+    ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radius, radius * 0.34, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
@@ -372,6 +450,79 @@ function drawOrbit(width, height, energy, time) {
   ctx.restore();
 }
 
+function drawSpectrumField(width, height, energy, time) {
+  const accentRgb = getThemeColor("--accent-rgb");
+  const warning = getThemeColor("--warning");
+  const rows = spectrumHistory.length;
+  if (!rows) return;
+
+  const horizon = height * 0.23;
+  const floor = height * 0.9;
+  const centerX = width / 2;
+  const fieldWidth = width * 0.9;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  const horizonGlow = ctx.createLinearGradient(0, horizon - 20, 0, floor);
+  horizonGlow.addColorStop(0, `rgba(${accentRgb}, ${0.02 + energy * 0.1})`);
+  horizonGlow.addColorStop(0.45, "transparent");
+  horizonGlow.addColorStop(1, `rgba(${accentRgb}, ${0.025 + energy * 0.04})`);
+  ctx.fillStyle = horizonGlow;
+  ctx.fillRect(0, horizon - 20, width, floor - horizon + 20);
+
+  for (let row = rows - 1; row >= 0; row -= 1) {
+    const snapshot = spectrumHistory[row];
+    const depth = 1 - row / Math.max(rows - 1, 1);
+    const perspective = 0.18 + Math.pow(depth, 1.7) * 0.82;
+    const yBase = horizon + Math.pow(depth, 1.9) * (floor - horizon);
+    const rowWidth = fieldWidth * perspective;
+    const left = centerX - rowWidth / 2;
+    const amplitude = height * (0.035 + perspective * 0.18);
+    const alpha = 0.08 + perspective * 0.74;
+
+    ctx.beginPath();
+    for (let point = 0; point < snapshot.length; point += 1) {
+      const x = left + (point / (snapshot.length - 1)) * rowWidth;
+      const edgeFade = Math.sin((point / (snapshot.length - 1)) * Math.PI);
+      const y = yBase - snapshot[point] * amplitude * edgeFade;
+      if (point === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.strokeStyle =
+      depth > 0.82 && energy > 0.52
+        ? warning
+        : `rgba(${accentRgb}, ${alpha})`;
+    ctx.lineWidth = 0.55 + perspective * 1.15;
+    ctx.shadowColor = `rgba(${accentRgb}, 0.65)`;
+    ctx.shadowBlur = perspective * (4 + energy * 8);
+    ctx.stroke();
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 0.5;
+  for (let column = 0; column <= 12; column += 1) {
+    const ratio = column / 12;
+    const horizonX = centerX + (ratio - 0.5) * fieldWidth * 0.18;
+    const floorX = centerX + (ratio - 0.5) * fieldWidth;
+    ctx.strokeStyle = `rgba(${accentRgb}, ${0.05 + energy * 0.08})`;
+    ctx.beginPath();
+    ctx.moveTo(horizonX, horizon);
+    ctx.lineTo(floorX, floor);
+    ctx.stroke();
+  }
+
+  const sweepX = ((time * 0.045) % (width + 160)) - 80;
+  const sweep = ctx.createLinearGradient(sweepX - 50, 0, sweepX + 50, 0);
+  sweep.addColorStop(0, "transparent");
+  sweep.addColorStop(0.5, `rgba(${accentRgb}, ${0.04 + energy * 0.1})`);
+  sweep.addColorStop(1, "transparent");
+  ctx.fillStyle = sweep;
+  ctx.fillRect(0, horizon, width, floor - horizon);
+  ctx.restore();
+}
+
 function updateMetrics() {
   analyser.getByteFrequencyData(frequencyData);
   analyser.getByteTimeDomainData(waveformData);
@@ -424,13 +575,17 @@ function animate() {
     analyser.getByteTimeDomainData(waveformData);
     const energy = getSignalEnergy();
 
+    captureSpectrumHistory(now);
+    detectBeat(now);
     drawVisualizerBackdrop(width, height, energy, now);
     if (visualizationMode === "frequency") drawFrequencyBars(width, height, energy);
     else if (visualizationMode === "waveform") drawWaveform(width, height, energy);
-    else drawOrbit(width, height, energy, now);
+    else if (visualizationMode === "orbit") drawOrbit(width, height, energy, now);
+    else drawSpectrumField(width, height, energy, now);
 
     spawnParticles(width, height, energy);
     drawParticles(deltaTime);
+    drawShockwaves(width, height, deltaTime);
     updateMetrics();
     canvasWrap.style.setProperty("--energy", energy.toFixed(3));
     canvasWrap.style.setProperty("--energy-haze", (energy * 0.16).toFixed(3));
@@ -527,8 +682,38 @@ document.querySelectorAll(".mode-button").forEach((button) => {
         ? "Frequency spectrum"
         : visualizationMode === "waveform"
           ? "Signal waveform"
-          : "Signal orbit";
+          : visualizationMode === "orbit"
+            ? "Signal orbit"
+            : "Spectral field";
+    visualModeLabel.textContent =
+      visualizationMode === "frequency"
+        ? "SPECTRUM / LIVE"
+        : visualizationMode === "waveform"
+          ? "TIME DOMAIN / LIVE"
+          : visualizationMode === "orbit"
+            ? "RADIAL MAP / LIVE"
+            : "HISTORY FIELD / LIVE";
   });
+});
+
+async function toggleVisualizerFullscreen() {
+  if (!document.fullscreenElement) {
+    await canvasWrap.requestFullscreen();
+  } else {
+    await document.exitFullscreen();
+  }
+}
+
+expandVisualizer.addEventListener("click", toggleVisualizerFullscreen);
+exitFullscreen.addEventListener("click", toggleVisualizerFullscreen);
+
+document.addEventListener("fullscreenchange", () => {
+  const isFullscreen = document.fullscreenElement === canvasWrap;
+  expandVisualizer.setAttribute(
+    "aria-label",
+    isFullscreen ? "Exit fullscreen visualizer" : "Enter fullscreen visualizer"
+  );
+  window.setTimeout(resizeCanvas, 80);
 });
 
 document.querySelector("#themeToggle").addEventListener("click", () => {

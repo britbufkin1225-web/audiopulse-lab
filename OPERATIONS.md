@@ -88,8 +88,15 @@ position, and the right value shows total duration.
 - Select **WAVE** to view the time-domain waveform.
 - Select **ORBIT** to view the circular spectrum, waveform ring, and
   beat-reactive core.
+- Select **FIELD** to view recent frequency snapshots as a scrolling,
+  perspective signal landscape.
 
 Changing modes does not interrupt playback.
+
+### Fullscreen Visualization
+
+Select the expand icon beside the mode controls to enter fullscreen. Press
+`Esc` or select the control again to return to the dashboard.
 
 ### Read Bass Energy
 
@@ -261,6 +268,8 @@ Run this checklist after changing the application:
 - [ ] Frequency bars react to audio.
 - [ ] Waveform mode draws a continuous line.
 - [ ] Orbit mode draws a reactive circular spectrum.
+- [ ] Field mode draws a scrolling perspective spectrum.
+- [ ] Fullscreen mode opens and exits without stretching the canvas.
 - [ ] Bass energy updates.
 - [ ] Peak level updates and the warning indicator can activate.
 - [ ] A second file replaces the first cleanly.

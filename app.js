@@ -47,6 +47,13 @@ let lastBeatTime = 0;
 const particles = [];
 const spectrumHistory = [];
 const shockwaves = [];
+const arcBursts = [];
+const signalNodes = Array.from({ length: 18 }, (_, index) => ({
+  x: ((index * 47) % 101) / 100,
+  y: (17 + ((index * 31) % 67)) / 100,
+  phase: index * 0.73,
+  band: index % 12,
+}));
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const formatTime = (seconds) => {
@@ -104,6 +111,41 @@ function drawVisualizerBackdrop(width, height, energy, time) {
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, width, height);
 
+  // Two restrained color blooms add chromatic depth while preserving the
+  // dashboard's primary green signal language.
+  const bass = frequencyData?.[3] / 255 || 0;
+  const treble = frequencyData?.[90] / 255 || 0;
+  const bloomRadius = Math.max(width, height) * 0.42;
+  const bloomX = width * (0.22 + Math.sin(time * 0.00018) * 0.04);
+  const bloomY = height * (0.58 + Math.cos(time * 0.00014) * 0.08);
+  const bassBloom = ctx.createRadialGradient(
+    bloomX,
+    bloomY,
+    0,
+    bloomX,
+    bloomY,
+    bloomRadius
+  );
+  bassBloom.addColorStop(0, `rgba(0, 210, 255, ${bass * 0.075})`);
+  bassBloom.addColorStop(1, "transparent");
+  ctx.fillStyle = bassBloom;
+  ctx.fillRect(0, 0, width, height);
+
+  const trebleX = width * (0.78 + Math.cos(time * 0.00016) * 0.04);
+  const trebleY = height * (0.36 + Math.sin(time * 0.0002) * 0.08);
+  const trebleBloom = ctx.createRadialGradient(
+    trebleX,
+    trebleY,
+    0,
+    trebleX,
+    trebleY,
+    bloomRadius * 0.82
+  );
+  trebleBloom.addColorStop(0, `rgba(255, 66, 151, ${treble * 0.065})`);
+  trebleBloom.addColorStop(1, "transparent");
+  ctx.fillStyle = trebleBloom;
+  ctx.fillRect(0, 0, width, height);
+
   ctx.save();
   ctx.globalAlpha = 0.12 + energy * 0.18;
   ctx.strokeStyle = `rgba(${accentRgb}, 0.28)`;
@@ -115,6 +157,61 @@ function drawVisualizerBackdrop(width, height, energy, time) {
     ctx.lineTo(x - height * 0.12, height);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+function drawSignalNetwork(width, height, energy, time) {
+  if (reducedMotion || energy < 0.08) return;
+
+  const accentRgb = getThemeColor("--accent-rgb");
+  const positions = signalNodes.map((node) => {
+    const dataIndex = Math.min(
+      frequencyData.length - 1,
+      Math.floor(Math.pow(node.band / 11, 1.8) * (frequencyData.length * 0.42))
+    );
+    const magnitude = frequencyData[dataIndex] / 255;
+    const drift = 5 + magnitude * 16;
+
+    return {
+      x: node.x * width + Math.sin(time * 0.00032 + node.phase) * drift,
+      y: node.y * height + Math.cos(time * 0.00027 + node.phase) * drift * 0.6,
+      magnitude,
+    };
+  });
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  for (let first = 0; first < positions.length; first += 1) {
+    for (let second = first + 1; second < positions.length; second += 1) {
+      const nodeA = positions[first];
+      const nodeB = positions[second];
+      const distance = Math.hypot(nodeA.x - nodeB.x, nodeA.y - nodeB.y);
+      const connectionRange = 105 + energy * 70;
+      if (distance > connectionRange) continue;
+
+      const strength =
+        (1 - distance / connectionRange) *
+        (0.03 + Math.min(nodeA.magnitude, nodeB.magnitude) * 0.18);
+      ctx.strokeStyle = `rgba(${accentRgb}, ${strength})`;
+      ctx.lineWidth = 0.45;
+      ctx.beginPath();
+      ctx.moveTo(nodeA.x, nodeA.y);
+      ctx.lineTo(nodeB.x, nodeB.y);
+      ctx.stroke();
+    }
+  }
+
+  for (const node of positions) {
+    const radius = 0.7 + node.magnitude * 2.4;
+    ctx.fillStyle = `rgba(${accentRgb}, ${0.16 + node.magnitude * 0.68})`;
+    ctx.shadowColor = `rgba(${accentRgb}, 0.8)`;
+    ctx.shadowBlur = 5 + node.magnitude * 9;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.restore();
 }
 
@@ -194,6 +291,12 @@ function detectBeat(time) {
   if (bassPulse > 0.48 && transient > 0.055 && time - lastBeatTime > 190) {
     shockwaves.push({ life: 1, strength: bassPulse });
     if (shockwaves.length > 5) shockwaves.shift();
+    arcBursts.push({
+      life: 1,
+      rotation: Math.random() * Math.PI * 2,
+      strength: bassPulse,
+    });
+    if (arcBursts.length > 6) arcBursts.shift();
     lastBeatTime = time;
   }
 
@@ -225,6 +328,68 @@ function drawShockwaves(width, height, deltaTime) {
     ctx.beginPath();
     ctx.ellipse(0, 0, radius, radius * 0.34, 0, 0, Math.PI * 2);
     ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawEnergyArcs(width, height, energy, time, deltaTime) {
+  const accentRgb = getThemeColor("--accent-rgb");
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const baseRadius = Math.min(width, height) * 0.34;
+
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+
+  const bands = [
+    { index: 4, radius: 0.76, speed: 0.00013, color: accentRgb },
+    { index: 28, radius: 0.9, speed: -0.00009, color: "0, 210, 255" },
+    { index: 92, radius: 1.04, speed: 0.00007, color: "255, 66, 151" },
+  ];
+
+  for (const band of bands) {
+    const magnitude = frequencyData[band.index] / 255;
+    if (magnitude < 0.08) continue;
+
+    const radius = baseRadius * band.radius;
+    const rotation = time * band.speed;
+    const arcLength = Math.PI * (0.2 + magnitude * 0.56);
+    ctx.strokeStyle = `rgba(${band.color}, ${0.035 + magnitude * 0.17})`;
+    ctx.lineWidth = 0.6 + magnitude * 1.2;
+    ctx.shadowColor = `rgba(${band.color}, 0.65)`;
+    ctx.shadowBlur = 6 + magnitude * 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, rotation, rotation + arcLength);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, rotation + Math.PI, rotation + Math.PI + arcLength * 0.72);
+    ctx.stroke();
+  }
+
+  for (let index = arcBursts.length - 1; index >= 0; index -= 1) {
+    const burst = arcBursts[index];
+    burst.life -= 0.014 * deltaTime;
+    burst.rotation += 0.008 * deltaTime;
+    if (burst.life <= 0) {
+      arcBursts.splice(index, 1);
+      continue;
+    }
+
+    const progress = 1 - burst.life;
+    const radius = baseRadius * (0.58 + progress * 0.78);
+    ctx.strokeStyle = `rgba(${accentRgb}, ${burst.life * 0.34})`;
+    ctx.lineWidth = 0.8 + burst.life * 1.7;
+    ctx.shadowColor = `rgba(${accentRgb}, 0.9)`;
+    ctx.shadowBlur = 14;
+    for (let segment = 0; segment < 3; segment += 1) {
+      const start = burst.rotation + segment * ((Math.PI * 2) / 3);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, start, start + Math.PI * 0.32);
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
@@ -265,10 +430,18 @@ function drawFrequencyBars(width, height, energy) {
   const baseline = height * 0.72;
   const usableHeight = height * 0.6;
   const gradient = ctx.createLinearGradient(0, baseline, 0, baseline - usableHeight);
+  const reflection = ctx.createLinearGradient(
+    0,
+    baseline,
+    0,
+    baseline + usableHeight * 0.22
+  );
 
   gradient.addColorStop(0, getThemeColor("--accent"));
   gradient.addColorStop(0.68, getThemeColor("--accent"));
   gradient.addColorStop(1, getThemeColor("--warning"));
+  reflection.addColorStop(0, `rgba(${getThemeColor("--accent-rgb")}, 0.26)`);
+  reflection.addColorStop(1, "transparent");
 
   if (peakCaps.length !== barCount) {
     peakCaps = new Array(barCount).fill(baseline);
@@ -297,9 +470,6 @@ function drawFrequencyBars(width, height, energy) {
     ctx.fillStyle = gradient;
 
     const reflectionHeight = barHeight * 0.22;
-    const reflection = ctx.createLinearGradient(0, baseline, 0, baseline + reflectionHeight);
-    reflection.addColorStop(0, `rgba(${getThemeColor("--accent-rgb")}, 0.26)`);
-    reflection.addColorStop(1, "transparent");
     ctx.fillStyle = reflection;
     ctx.fillRect(x, baseline + 3, Math.max(1, barWidth), reflectionHeight);
     ctx.fillStyle = gradient;
@@ -583,6 +753,8 @@ function animate() {
     else if (visualizationMode === "orbit") drawOrbit(width, height, energy, now);
     else drawSpectrumField(width, height, energy, now);
 
+    drawSignalNetwork(width, height, energy, now);
+    drawEnergyArcs(width, height, energy, now, deltaTime);
     spawnParticles(width, height, energy);
     drawParticles(deltaTime);
     drawShockwaves(width, height, deltaTime);

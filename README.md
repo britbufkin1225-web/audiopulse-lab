@@ -18,6 +18,9 @@ inside the browser. Uploaded files are not sent to a server.
 - Circular Orbit mode with radial spectrum and waveform rings
 - 3D-style Field mode with scrolling frequency history and depth fog
 - Beat-triggered shockwaves shared across visualization modes
+- Audio-reactive signal nodes connected by dynamic filaments
+- Rotating bass, mid, and treble energy arcs with beat bursts
+- Subtle cyan and magenta chromatic bloom
 - Fullscreen presentation mode
 - Beat-reactive glow, particles, scan line, and signal HUD
 - Bass-energy analysis across approximately 20-250 Hz

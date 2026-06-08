@@ -93,6 +93,10 @@ position, and the right value shows total duration.
 
 Changing modes does not interrupt playback.
 
+All modes also share a dynamic overlay layer. Signal nodes, connecting
+filaments, rotating energy arcs, chromatic bloom, and beat bursts respond to
+different frequency ranges without changing the underlying analysis.
+
 ### Fullscreen Visualization
 
 Select the expand icon beside the mode controls to enter fullscreen. Press
@@ -269,6 +273,7 @@ Run this checklist after changing the application:
 - [ ] Waveform mode draws a continuous line.
 - [ ] Orbit mode draws a reactive circular spectrum.
 - [ ] Field mode draws a scrolling perspective spectrum.
+- [ ] Signal nodes and energy arcs respond without obscuring the main mode.
 - [ ] Fullscreen mode opens and exits without stretching the canvas.
 - [ ] Bass energy updates.
 - [ ] Peak level updates and the warning indicator can activate.

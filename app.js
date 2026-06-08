@@ -14,6 +14,19 @@ const visualFps = document.querySelector("#visualFps");
 const visualModeLabel = document.querySelector("#visualModeLabel");
 const expandVisualizer = document.querySelector("#expandVisualizer");
 const exitFullscreen = document.querySelector("#exitFullscreen");
+const sensitivityControl = document.querySelector("#sensitivityControl");
+const smoothingControl = document.querySelector("#smoothingControl");
+const intensityControl = document.querySelector("#intensityControl");
+const motionControl = document.querySelector("#motionControl");
+const sensitivityValue = document.querySelector("#sensitivityValue");
+const smoothingValue = document.querySelector("#smoothingValue");
+const intensityValue = document.querySelector("#intensityValue");
+const motionValue = document.querySelector("#motionValue");
+const overlayToggle = document.querySelector("#overlayToggle");
+const beatFxToggle = document.querySelector("#beatFxToggle");
+const resetControls = document.querySelector("#resetControls");
+const customColor = document.querySelector("#customColor");
+const moodSwatches = document.querySelectorAll(".mood-swatch");
 
 const fileName = document.querySelector("#fileName");
 const fileType = document.querySelector("#fileType");
@@ -62,6 +75,23 @@ const signalNodes = Array.from({ length: 18 }, (_, index) => ({
   band: index % 12,
 }));
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const controlDefaults = {
+  sensitivity: 1,
+  smoothing: 0.82,
+  intensity: 1,
+  motion: 1,
+  overlays: true,
+  beatFx: true,
+  mood: "neon",
+  accent: "#b7ff33",
+};
+let visualControls = { ...controlDefaults };
+const moodPalettes = {
+  neon: { accent: "#b7ff33", warning: "#ffcc33" },
+  cyan: { accent: "#33e6ff", warning: "#b7ff33" },
+  magenta: { accent: "#ff4297", warning: "#33e6ff" },
+  amber: { accent: "#ffb52e", warning: "#ff5f56" },
+};
 
 const formatTime = (seconds) => {
   if (!Number.isFinite(seconds)) return "00:00";
@@ -87,6 +117,45 @@ function getThemeColor(name) {
   return getComputedStyle(document.body).getPropertyValue(name).trim();
 }
 
+function hexToRgb(hex) {
+  const normalized = hex.replace("#", "");
+  const value = Number.parseInt(normalized, 16);
+  return {
+    red: (value >> 16) & 255,
+    green: (value >> 8) & 255,
+    blue: value & 255,
+  };
+}
+
+function applyColorMood() {
+  const palette =
+    visualControls.mood === "custom"
+      ? { accent: visualControls.accent, warning: "#ffffff" }
+      : moodPalettes[visualControls.mood] || moodPalettes.neon;
+  const rgb = hexToRgb(palette.accent);
+
+  visualControls.accent = palette.accent;
+  document.body.style.setProperty("--accent", palette.accent);
+  document.body.style.setProperty(
+    "--accent-rgb",
+    `${rgb.red}, ${rgb.green}, ${rgb.blue}`
+  );
+  document.body.style.setProperty("--warning", palette.warning);
+  document.body.style.setProperty(
+    "--line",
+    `rgba(${rgb.red}, ${rgb.green}, ${rgb.blue}, 0.2)`
+  );
+  document.body.style.setProperty(
+    "--grid",
+    `rgba(${rgb.red}, ${rgb.green}, ${rgb.blue}, 0.035)`
+  );
+  customColor.value = palette.accent;
+
+  moodSwatches.forEach((button) => {
+    button.classList.toggle("active", button.dataset.mood === visualControls.mood);
+  });
+}
+
 function getSignalEnergy() {
   if (!frequencyData?.length) return 0;
 
@@ -101,8 +170,24 @@ function getSignalEnergy() {
   return smoothedEnergy;
 }
 
+function applySignalSensitivity() {
+  const sensitivity = visualControls.sensitivity;
+  for (let index = 0; index < frequencyData.length; index += 1) {
+    frequencyData[index] = Math.min(255, frequencyData[index] * sensitivity);
+  }
+
+  for (let index = 0; index < waveformData.length; index += 1) {
+    const centeredSample = waveformData[index] - 128;
+    waveformData[index] = Math.max(
+      0,
+      Math.min(255, 128 + centeredSample * sensitivity)
+    );
+  }
+}
+
 function drawVisualizerBackdrop(width, height, energy, time) {
   const accentRgb = getThemeColor("--accent-rgb");
+  const intensity = visualControls.intensity;
   const glow = ctx.createRadialGradient(
     width * 0.5,
     height * 0.52,
@@ -112,8 +197,8 @@ function drawVisualizerBackdrop(width, height, energy, time) {
     Math.max(width, height) * 0.58
   );
 
-  glow.addColorStop(0, `rgba(${accentRgb}, ${0.025 + energy * 0.14})`);
-  glow.addColorStop(0.5, `rgba(${accentRgb}, ${energy * 0.035})`);
+  glow.addColorStop(0, `rgba(${accentRgb}, ${(0.025 + energy * 0.14) * intensity})`);
+  glow.addColorStop(0.5, `rgba(${accentRgb}, ${energy * 0.035 * intensity})`);
   glow.addColorStop(1, "transparent");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, width, height);
@@ -133,7 +218,7 @@ function drawVisualizerBackdrop(width, height, energy, time) {
     bloomY,
     bloomRadius
   );
-  bassBloom.addColorStop(0, `rgba(0, 210, 255, ${bass * 0.075})`);
+  bassBloom.addColorStop(0, `rgba(0, 210, 255, ${bass * 0.075 * intensity})`);
   bassBloom.addColorStop(1, "transparent");
   ctx.fillStyle = bassBloom;
   ctx.fillRect(0, 0, width, height);
@@ -148,7 +233,7 @@ function drawVisualizerBackdrop(width, height, energy, time) {
     trebleY,
     bloomRadius * 0.82
   );
-  trebleBloom.addColorStop(0, `rgba(255, 66, 151, ${treble * 0.065})`);
+  trebleBloom.addColorStop(0, `rgba(255, 66, 151, ${treble * 0.065 * intensity})`);
   trebleBloom.addColorStop(1, "transparent");
   ctx.fillStyle = trebleBloom;
   ctx.fillRect(0, 0, width, height);
@@ -168,7 +253,7 @@ function drawVisualizerBackdrop(width, height, energy, time) {
 }
 
 function drawSignalNetwork(width, height, energy, time) {
-  if (reducedMotion || energy < 0.08) return;
+  if (reducedMotion || !visualControls.overlays || energy < 0.08) return;
 
   const accentRgb = getThemeColor("--accent-rgb");
   const positions = signalNodes.map((node) => {
@@ -223,7 +308,12 @@ function drawSignalNetwork(width, height, energy, time) {
 }
 
 function spawnParticles(width, height, energy) {
-  if (reducedMotion || energy < 0.26 || particles.length > 70) return;
+  if (
+    reducedMotion ||
+    !visualControls.overlays ||
+    energy < 0.26 ||
+    particles.length > 70
+  ) return;
 
   const spawnCount = energy > 0.62 ? 3 : 1;
   for (let index = 0; index < spawnCount; index += 1) {
@@ -283,7 +373,7 @@ function captureSpectrumHistory(time) {
 }
 
 function detectBeat(time) {
-  if (!audioContext || !frequencyData?.length) return;
+  if (!audioContext || !frequencyData?.length || !visualControls.beatFx) return;
 
   const binWidth = audioContext.sampleRate / analyser.fftSize;
   const lastBeatBin = Math.min(frequencyData.length - 1, Math.ceil(180 / binWidth));
@@ -311,7 +401,7 @@ function detectBeat(time) {
 }
 
 function drawShockwaves(width, height, deltaTime) {
-  if (!shockwaves.length) return;
+  if (!visualControls.beatFx || !shockwaves.length) return;
 
   const accentRgb = getThemeColor("--accent-rgb");
   ctx.save();
@@ -341,6 +431,7 @@ function drawShockwaves(width, height, deltaTime) {
 }
 
 function drawEnergyArcs(width, height, energy, time, deltaTime) {
+  if (!visualControls.overlays) return;
   const accentRgb = getThemeColor("--accent-rgb");
   const centerX = width / 2;
   const centerY = height / 2;
@@ -420,12 +511,73 @@ function initializeAudioPipeline() {
   analyser = audioContext.createAnalyser();
 
   analyser.fftSize = 2048;
-  analyser.smoothingTimeConstant = 0.82;
+  analyser.smoothingTimeConstant = visualControls.smoothing;
   analyser.minDecibels = -90;
   analyser.maxDecibels = -10;
 
   frequencyData = new Uint8Array(analyser.frequencyBinCount);
   waveformData = new Uint8Array(analyser.fftSize);
+}
+
+function saveVisualControls() {
+  localStorage.setItem("audioPulseVisualControls", JSON.stringify(visualControls));
+}
+
+function updateControlInterface() {
+  sensitivityControl.value = Math.round(visualControls.sensitivity * 100);
+  smoothingControl.value = Math.round(visualControls.smoothing * 100);
+  intensityControl.value = Math.round(visualControls.intensity * 100);
+  motionControl.value = Math.round(visualControls.motion * 100);
+  overlayToggle.checked = visualControls.overlays;
+  beatFxToggle.checked = visualControls.beatFx;
+  applyColorMood();
+
+  sensitivityValue.textContent = `${sensitivityControl.value}%`;
+  smoothingValue.textContent = `${smoothingControl.value}%`;
+  intensityValue.textContent = `${intensityControl.value}%`;
+  motionValue.textContent = `${motionControl.value}%`;
+
+  [
+    sensitivityControl,
+    smoothingControl,
+    intensityControl,
+    motionControl,
+  ].forEach(updateRangeProgress);
+
+  if (analyser) analyser.smoothingTimeConstant = visualControls.smoothing;
+}
+
+function loadVisualControls() {
+  try {
+    const savedControls = JSON.parse(
+      localStorage.getItem("audioPulseVisualControls") || "null"
+    );
+    if (savedControls) {
+      visualControls = { ...controlDefaults, ...savedControls };
+    }
+  } catch {
+    visualControls = { ...controlDefaults };
+  }
+  updateControlInterface();
+}
+
+function bindRangeControl(element, output, property, divisor = 100) {
+  element.addEventListener("input", () => {
+    visualControls[property] = Number(element.value) / divisor;
+    output.textContent = `${element.value}%`;
+    if (property === "smoothing" && analyser) {
+      analyser.smoothingTimeConstant = visualControls.smoothing;
+    }
+    updateRangeProgress(element);
+    saveVisualControls();
+  });
+}
+
+function updateRangeProgress(element) {
+  const minimum = Number(element.min);
+  const maximum = Number(element.max);
+  const progress = ((Number(element.value) - minimum) / (maximum - minimum)) * 100;
+  element.style.setProperty("--progress", `${progress}%`);
 }
 
 function disconnectAudioSources() {
@@ -846,9 +998,6 @@ function drawSpectrumField(width, height, energy, time) {
 }
 
 function updateMetrics() {
-  analyser.getByteFrequencyData(frequencyData);
-  analyser.getByteTimeDomainData(waveformData);
-
   // Bass energy averages FFT bins between 20 Hz and 250 Hz.
   const binWidth = audioContext.sampleRate / analyser.fftSize;
   const firstBassBin = Math.max(1, Math.floor(20 / binWidth));
@@ -895,28 +1044,43 @@ function animate() {
   if (analyser) {
     analyser.getByteFrequencyData(frequencyData);
     analyser.getByteTimeDomainData(waveformData);
+    applySignalSensitivity();
     const energy = getSignalEnergy();
+    const visualEnergy = Math.min(1, energy * visualControls.intensity);
+    const visualTime = now * visualControls.motion;
+    const visualDelta = deltaTime * visualControls.motion;
 
     captureSpectrumHistory(now);
-    detectBeat(now);
-    drawVisualizerBackdrop(width, height, energy, now);
-    if (visualizationMode === "frequency") drawFrequencyBars(width, height, energy);
-    else if (visualizationMode === "waveform") drawWaveform(width, height, energy);
-    else if (visualizationMode === "orbit") drawOrbit(width, height, energy, now);
-    else drawSpectrumField(width, height, energy, now);
+    detectBeat(visualTime);
+    drawVisualizerBackdrop(width, height, visualEnergy, visualTime);
+    if (visualizationMode === "frequency") {
+      drawFrequencyBars(width, height, visualEnergy);
+    } else if (visualizationMode === "waveform") {
+      drawWaveform(width, height, visualEnergy);
+    } else if (visualizationMode === "orbit") {
+      drawOrbit(width, height, visualEnergy, visualTime);
+    } else {
+      drawSpectrumField(width, height, visualEnergy, visualTime);
+    }
 
-    drawSignalNetwork(width, height, energy, now);
-    drawEnergyArcs(width, height, energy, now, deltaTime);
-    spawnParticles(width, height, energy);
-    drawParticles(deltaTime);
-    drawShockwaves(width, height, deltaTime);
+    drawSignalNetwork(width, height, visualEnergy, visualTime);
+    drawEnergyArcs(width, height, visualEnergy, visualTime, visualDelta);
+    spawnParticles(width, height, visualEnergy);
+    drawParticles(visualDelta);
+    drawShockwaves(width, height, visualDelta);
     updateMetrics();
-    canvasWrap.style.setProperty("--energy", energy.toFixed(3));
-    canvasWrap.style.setProperty("--energy-haze", (energy * 0.16).toFixed(3));
-    visualizerPanel.style.setProperty("--energy", energy.toFixed(3));
-    visualizerPanel.style.setProperty("--energy-alpha", (0.12 + energy * 0.38).toFixed(3));
-    visualizerPanel.style.setProperty("--energy-shadow", (energy * 0.15).toFixed(3));
-    visualizerPanel.style.setProperty("--energy-glow", `${16 + energy * 34}px`);
+    canvasWrap.style.setProperty("--energy", visualEnergy.toFixed(3));
+    canvasWrap.style.setProperty("--energy-haze", (visualEnergy * 0.16).toFixed(3));
+    visualizerPanel.style.setProperty("--energy", visualEnergy.toFixed(3));
+    visualizerPanel.style.setProperty(
+      "--energy-alpha",
+      (0.12 + visualEnergy * 0.38).toFixed(3)
+    );
+    visualizerPanel.style.setProperty(
+      "--energy-shadow",
+      (visualEnergy * 0.15).toFixed(3)
+    );
+    visualizerPanel.style.setProperty("--energy-glow", `${16 + visualEnergy * 34}px`);
   }
 
   fpsFrames += 1;
@@ -964,6 +1128,52 @@ playButton.addEventListener("click", async () => {
 captureButton.addEventListener("click", async () => {
   if (captureStream) stopLiveCapture();
   else await startLiveCapture();
+});
+
+bindRangeControl(
+  sensitivityControl,
+  sensitivityValue,
+  "sensitivity"
+);
+bindRangeControl(smoothingControl, smoothingValue, "smoothing");
+bindRangeControl(intensityControl, intensityValue, "intensity");
+bindRangeControl(motionControl, motionValue, "motion");
+
+overlayToggle.addEventListener("change", () => {
+  visualControls.overlays = overlayToggle.checked;
+  if (!visualControls.overlays) particles.length = 0;
+  saveVisualControls();
+});
+
+beatFxToggle.addEventListener("change", () => {
+  visualControls.beatFx = beatFxToggle.checked;
+  if (!visualControls.beatFx) {
+    shockwaves.length = 0;
+    arcBursts.length = 0;
+  }
+  saveVisualControls();
+});
+
+moodSwatches.forEach((button) => {
+  button.addEventListener("click", () => {
+    visualControls.mood = button.dataset.mood;
+    visualControls.accent = moodPalettes[visualControls.mood].accent;
+    applyColorMood();
+    saveVisualControls();
+  });
+});
+
+customColor.addEventListener("input", () => {
+  visualControls.mood = "custom";
+  visualControls.accent = customColor.value;
+  applyColorMood();
+  saveVisualControls();
+});
+
+resetControls.addEventListener("click", () => {
+  visualControls = { ...controlDefaults };
+  updateControlInterface();
+  saveVisualControls();
 });
 
 audio.addEventListener("loadedmetadata", () => {
@@ -1059,4 +1269,5 @@ window.addEventListener("beforeunload", () => {
 });
 
 resizeCanvas();
+loadVisualControls();
 animate();

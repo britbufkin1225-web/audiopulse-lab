@@ -653,6 +653,221 @@ canvas {
   font-size: 6px;
 }
 
+.control-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  gap: 28px;
+  align-items: center;
+  padding: 19px 21px;
+}
+
+.control-panel-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.control-panel-heading .panel-label {
+  margin-bottom: 6px;
+}
+
+.control-panel-heading h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.reset-controls {
+  padding: 7px 9px;
+  border: 1px solid var(--line-soft);
+  color: var(--muted);
+  background: transparent;
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.reset-controls:hover {
+  border-color: var(--line);
+  color: var(--accent);
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 18px;
+}
+
+.control-item {
+  min-width: 0;
+}
+
+.control-item > span {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  letter-spacing: 0.07em;
+}
+
+.control-item strong {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.control-item output {
+  color: var(--accent);
+}
+
+.control-item input[type="range"] {
+  height: 2px;
+}
+
+.control-toggles {
+  display: grid;
+  gap: 10px;
+  min-width: 165px;
+}
+
+.toggle-control {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.toggle-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.toggle-track {
+  position: relative;
+  width: 28px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-soft);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.toggle-track i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  background: var(--muted);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.toggle-control input:checked + .toggle-track {
+  border-color: var(--line);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+
+.toggle-control input:checked + .toggle-track i {
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
+  transform: translateX(14px);
+}
+
+.mood-picker {
+  display: grid;
+  gap: 7px;
+  padding-top: 2px;
+  color: var(--muted);
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  letter-spacing: 0.06em;
+}
+
+.mood-options {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.mood-swatch,
+.custom-color {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  background: var(--swatch);
+  cursor: pointer;
+  place-items: center;
+}
+
+.mood-swatch:hover,
+.mood-swatch.active,
+.custom-color:hover {
+  border-color: var(--text);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--swatch, var(--accent)) 45%, transparent);
+}
+
+.mood-swatch.active::after {
+  width: 5px;
+  height: 5px;
+  border: 1px solid #050708;
+  background: #ffffff;
+  content: "";
+}
+
+.mood-swatch[data-mood="neon"] {
+  --swatch: #b7ff33;
+}
+
+.mood-swatch[data-mood="cyan"] {
+  --swatch: #33e6ff;
+}
+
+.mood-swatch[data-mood="magenta"] {
+  --swatch: #ff4297;
+}
+
+.mood-swatch[data-mood="amber"] {
+  --swatch: #ffb52e;
+}
+
+.custom-color {
+  position: relative;
+  color: var(--text);
+  background:
+    conic-gradient(
+      #ff426f,
+      #ffcc33,
+      #b7ff33,
+      #33e6ff,
+      #955cff,
+      #ff426f
+    );
+  font-size: 12px;
+}
+
+.custom-color input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.custom-color span {
+  text-shadow: 0 1px 3px #000000;
+}
+
 .transport-panel {
   grid-column: 1 / -1;
   display: grid;
@@ -890,6 +1105,20 @@ footer {
     grid-template-columns: 1fr 1fr;
   }
 
+  .control-panel {
+    grid-column: 1;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .control-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .control-toggles {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
   .transport {
     grid-column: 1 / -1;
   }
@@ -949,6 +1178,11 @@ footer {
 
   .metrics,
   .transport-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .control-grid,
+  .control-toggles {
     grid-template-columns: 1fr;
   }
 

@@ -22,6 +22,10 @@ inside the browser. Uploaded files are not sent to a server.
 - Audio-reactive signal nodes connected by dynamic filaments
 - Rotating bass, mid, and treble energy arcs with beat bursts
 - Subtle cyan and magenta chromatic bloom
+- Manual sensitivity, smoothing, intensity, and motion controls
+- Independent ambient-overlay and beat-effect toggles
+- Neon, cyan, magenta, amber, and custom color moods
+- Locally persisted visual preferences with one-click reset
 - Fullscreen presentation mode
 - Beat-reactive glow, particles, scan line, and signal HUD
 - Bass-energy analysis across approximately 20-250 Hz
@@ -103,6 +107,23 @@ See [OPERATIONS.md](OPERATIONS.md) for complete user instructions.
 6. Use the expand button to present the visualizer in fullscreen.
 7. Drag the timeline to seek through the track.
 8. Use the theme button in the upper-right corner to switch themes.
+
+### Manual Visualizer Controls
+
+The control deck applies to local files and live tab capture:
+
+| Control | Effect |
+| --- | --- |
+| Sensitivity | Amplifies or reduces analyzer response |
+| Smoothing | Controls how quickly frequency values change |
+| Intensity | Scales glow, reactions, and visual energy |
+| Motion | Changes animation speed; `0%` freezes procedural motion |
+| Ambient overlays | Toggles nodes, filaments, particles, and energy arcs |
+| Beat effects | Toggles beat-triggered shockwaves and arc bursts |
+| Color mood | Applies a preset or custom accent across the complete dashboard |
+
+Settings are saved in browser local storage. Select **Reset** to restore the
+default values and Neon mood.
 
 ### Analyze YouTube or Another Music App
 

@@ -150,6 +150,85 @@
           </article>
         </aside>
 
+        <section class="control-panel panel" aria-labelledby="controlPanelTitle">
+          <div class="control-panel-heading">
+            <div>
+              <p class="panel-label">MANUAL TUNING</p>
+              <h2 id="controlPanelTitle">Visualizer controls</h2>
+            </div>
+            <button class="reset-controls" id="resetControls" type="button">RESET</button>
+          </div>
+
+          <div class="control-grid">
+            <label class="control-item">
+              <span><strong>Sensitivity</strong><output id="sensitivityValue">100%</output></span>
+              <input id="sensitivityControl" type="range" min="50" max="200" value="100" />
+            </label>
+            <label class="control-item">
+              <span><strong>Smoothing</strong><output id="smoothingValue">82%</output></span>
+              <input id="smoothingControl" type="range" min="0" max="95" value="82" />
+            </label>
+            <label class="control-item">
+              <span><strong>Intensity</strong><output id="intensityValue">100%</output></span>
+              <input id="intensityControl" type="range" min="30" max="180" value="100" />
+            </label>
+            <label class="control-item">
+              <span><strong>Motion</strong><output id="motionValue">100%</output></span>
+              <input id="motionControl" type="range" min="0" max="200" value="100" />
+            </label>
+          </div>
+
+          <div class="control-toggles">
+            <label class="toggle-control">
+              <input id="overlayToggle" type="checkbox" checked />
+              <span class="toggle-track"><i></i></span>
+              <span>Ambient overlays</span>
+            </label>
+            <label class="toggle-control">
+              <input id="beatFxToggle" type="checkbox" checked />
+              <span class="toggle-track"><i></i></span>
+              <span>Beat effects</span>
+            </label>
+            <div class="mood-picker" aria-label="Visualizer mood">
+              <span>Color mood</span>
+              <div class="mood-options">
+                <button
+                  class="mood-swatch active"
+                  type="button"
+                  data-mood="neon"
+                  aria-label="Neon green mood"
+                  title="Neon"
+                ></button>
+                <button
+                  class="mood-swatch"
+                  type="button"
+                  data-mood="cyan"
+                  aria-label="Electric cyan mood"
+                  title="Cyan"
+                ></button>
+                <button
+                  class="mood-swatch"
+                  type="button"
+                  data-mood="magenta"
+                  aria-label="Cyber magenta mood"
+                  title="Magenta"
+                ></button>
+                <button
+                  class="mood-swatch"
+                  type="button"
+                  data-mood="amber"
+                  aria-label="Solar amber mood"
+                  title="Amber"
+                ></button>
+                <label class="custom-color" title="Custom color">
+                  <input id="customColor" type="color" value="#b7ff33" />
+                  <span aria-hidden="true">+</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div class="transport-panel panel">
           <div class="source-options">
             <label class="upload-zone" for="audioFile">

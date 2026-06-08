@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="AudioPulse Lab is a browser-based audio intelligence dashboard powered by the Web Audio API."
+    />
+    <title>AudioPulse Lab</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="AudioPulse Lab home">
+          <span class="brand-mark" aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </span>
+          <span>
+            <strong>AudioPulse</strong>
+            <small>LAB / SIGNAL INTELLIGENCE</small>
+          </span>
+        </a>
+
+        <div class="topbar-actions">
+          <div class="system-status">
+            <span class="status-dot"></span>
+            <span id="systemStatus">SYSTEM READY</span>
+          </div>
+          <button class="icon-button" id="themeToggle" type="button" aria-label="Toggle theme">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.94 16.94l1.42 1.42M18.36 5.64l-1.42 1.42M7.06 16.94l-1.42 1.42" />
+              <circle cx="12" cy="12" r="4" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">REAL-TIME AUDIO ANALYSIS</p>
+          <h1>See what your<br /><span>sound is saying.</span></h1>
+          <p class="hero-copy">
+            Load any audio file and inspect its frequency spectrum, waveform,
+            bass energy, and peak levels directly in your browser.
+          </p>
+        </div>
+        <div class="hero-index" aria-hidden="true">
+          <span>AP—01</span>
+          <span>WEB AUDIO API</span>
+        </div>
+      </section>
+
+      <section class="dashboard" aria-label="Audio dashboard">
+        <div class="visualizer-panel panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-label">LIVE SIGNAL</p>
+              <h2 id="visualizerTitle">Frequency spectrum</h2>
+            </div>
+            <div class="mode-switch" aria-label="Visualization mode">
+              <button class="mode-button active" type="button" data-mode="frequency">BARS</button>
+              <button class="mode-button" type="button" data-mode="waveform">WAVE</button>
+            </div>
+          </div>
+
+          <div class="canvas-wrap">
+            <canvas id="visualizer" aria-label="Animated audio visualization"></canvas>
+            <div class="canvas-empty" id="canvasEmpty">
+              <span class="empty-icon" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i>
+              </span>
+              <p>AWAITING AUDIO SIGNAL</p>
+              <small>Upload a track to initialize analysis</small>
+            </div>
+            <div class="frequency-scale" aria-hidden="true">
+              <span>20 Hz</span>
+              <span>250</span>
+              <span>1k</span>
+              <span>4k</span>
+              <span>12k</span>
+              <span>20 kHz</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="metrics" aria-label="Audio metrics">
+          <article class="metric-card panel">
+            <div class="metric-heading">
+              <span>BASS ENERGY</span>
+              <span class="metric-tag">20—250 HZ</span>
+            </div>
+            <div class="metric-value">
+              <strong id="bassValue">00</strong><span>%</span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill" id="bassMeter"></div>
+            </div>
+            <p id="bassLabel">NO SIGNAL</p>
+          </article>
+
+          <article class="metric-card panel peak-card">
+            <div class="metric-heading">
+              <span>PEAK LEVEL</span>
+              <span class="peak-light" id="peakLight"></span>
+            </div>
+            <div class="metric-value">
+              <strong id="peakValue">−∞</strong><span>dB</span>
+            </div>
+            <div class="peak-scale" aria-hidden="true">
+              <span>−48</span><span>−24</span><span>−12</span><span>0</span>
+            </div>
+            <div class="meter-track segmented">
+              <div class="meter-fill" id="peakMeter"></div>
+            </div>
+            <p id="peakLabel">PEAK MONITOR</p>
+          </article>
+        </aside>
+
+        <div class="transport-panel panel">
+          <label class="upload-zone" for="audioFile">
+            <input id="audioFile" type="file" accept="audio/*" />
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 16V4M7 9l5-5 5 5M5 14v5h14v-5" />
+              </svg>
+            </span>
+            <span>
+              <strong>Load audio file</strong>
+              <small>MP3, WAV, OGG, M4A</small>
+            </span>
+          </label>
+
+          <div class="track-info">
+            <p class="panel-label">NOW ANALYZING</p>
+            <strong id="fileName">No file selected</strong>
+            <div class="track-meta">
+              <span id="fileType">—</span>
+              <span id="fileSize">—</span>
+              <span id="duration">00:00</span>
+            </div>
+          </div>
+
+          <div class="transport">
+            <button class="play-button" id="playButton" type="button" disabled aria-label="Play audio">
+              <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+              </svg>
+            </button>
+            <div class="timeline">
+              <input id="seekBar" type="range" min="0" max="100" value="0" aria-label="Seek through audio" />
+              <div class="time-row">
+                <span id="currentTime">00:00</span>
+                <span id="totalTime">00:00</span>
+              </div>
+            </div>
+          </div>
+          <audio id="audio" preload="metadata"></audio>
+        </div>
+      </section>
+
+      <footer>
+        <span>AUDIOPULSE LAB / 2026</span>
+        <span>LOCAL PROCESSING · YOUR AUDIO NEVER LEAVES THIS DEVICE</span>
+      </footer>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

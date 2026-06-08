@@ -1,5 +1,8 @@
 const audio = document.querySelector("#audio");
 const audioFile = document.querySelector("#audioFile");
+const captureButton = document.querySelector("#captureButton");
+const captureButtonLabel = document.querySelector("#captureButtonLabel");
+const captureButtonHint = document.querySelector("#captureButtonHint");
 const playButton = document.querySelector("#playButton");
 const seekBar = document.querySelector("#seekBar");
 const canvas = document.querySelector("#visualizer");
@@ -29,12 +32,16 @@ const peakMeter = document.querySelector("#peakMeter");
 const peakLight = document.querySelector("#peakLight");
 
 let audioContext;
-let sourceNode;
+let mediaElementSource;
+let captureSource;
+let captureStream;
 let analyser;
 let frequencyData;
 let waveformData;
 let animationId;
 let objectUrl;
+let activeSource = "none";
+let stoppingCapture = false;
 let visualizationMode = "frequency";
 let smoothedEnergy = 0;
 let lastFrameTime = performance.now();
@@ -397,18 +404,19 @@ function drawEnergyArcs(width, height, energy, time, deltaTime) {
 
 /**
  * Audio pipeline:
- * HTMLAudioElement -> MediaElementAudioSourceNode -> AnalyserNode -> speakers.
+ * Local file: HTMLAudioElement -> MediaElementAudioSourceNode, then the source
+ * branches to AnalyserNode for data and AudioContext.destination for playback.
+ * Live capture: MediaStreamAudioSourceNode -> AnalyserNode only.
  *
- * The source node sends the selected track into the Web Audio graph. The
- * AnalyserNode observes that signal without changing it, exposing frequency
- * and waveform snapshots for the canvas. Connecting the analyser to the
- * destination lets the same signal continue to the user's speakers.
+ * The analyser exposes frequency and waveform snapshots for the canvas.
+ * Captured tabs are not routed to the destination because the source tab
+ * already plays its audio and a second output path would create echo.
  */
 function initializeAudioPipeline() {
   if (audioContext) return;
 
   audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  sourceNode = audioContext.createMediaElementSource(audio);
+  mediaElementSource = audioContext.createMediaElementSource(audio);
   analyser = audioContext.createAnalyser();
 
   analyser.fftSize = 2048;
@@ -416,11 +424,155 @@ function initializeAudioPipeline() {
   analyser.minDecibels = -90;
   analyser.maxDecibels = -10;
 
-  sourceNode.connect(analyser);
-  analyser.connect(audioContext.destination);
-
   frequencyData = new Uint8Array(analyser.frequencyBinCount);
   waveformData = new Uint8Array(analyser.fftSize);
+}
+
+function disconnectAudioSources() {
+  mediaElementSource?.disconnect();
+  captureSource?.disconnect();
+  captureSource = null;
+}
+
+function activateLocalSource() {
+  initializeAudioPipeline();
+  disconnectAudioSources();
+
+  // Local files need two paths: one to the analyser and one to speakers.
+  // Keeping playback outside the analyser also prevents captured tab audio
+  // from being echoed when the app switches sources.
+  mediaElementSource.connect(analyser);
+  mediaElementSource.connect(audioContext.destination);
+  activeSource = "file";
+}
+
+function resetLiveMetrics() {
+  smoothedEnergy = 0;
+  bassValue.textContent = "00";
+  bassMeter.style.width = "0%";
+  bassLabel.textContent = "NO SIGNAL";
+  peakValue.textContent = "−∞";
+  peakMeter.style.width = "0%";
+  peakLight.classList.remove("active");
+}
+
+function setCaptureUi(isCapturing) {
+  captureButton.classList.toggle("active", isCapturing);
+  captureButtonLabel.textContent = isCapturing ? "Stop live capture" : "Share tab audio";
+  captureButtonHint.textContent = isCapturing
+    ? "Listening to shared browser audio"
+    : "YouTube, Spotify, or system audio";
+  playButton.disabled = isCapturing || !audio.src;
+  seekBar.disabled = isCapturing;
+}
+
+function restoreLocalMetadata() {
+  const file = audioFile.files[0];
+  if (!file) return;
+
+  const formattedDuration = formatTime(audio.duration);
+  fileName.textContent = file.name;
+  fileType.textContent = (file.type.split("/")[1] || "AUDIO").toUpperCase();
+  fileSize.textContent = formatBytes(file.size);
+  duration.textContent = formattedDuration;
+  currentTime.textContent = formatTime(audio.currentTime);
+  totalTime.textContent = formattedDuration;
+}
+
+function stopLiveCapture({ restoreStatus = true } = {}) {
+  if (!captureStream || stoppingCapture) return;
+  stoppingCapture = true;
+
+  for (const track of captureStream.getTracks()) {
+    track.stop();
+  }
+  captureSource?.disconnect();
+  captureSource = null;
+  captureStream = null;
+  activeSource = audio.src ? "file" : "none";
+  setCaptureUi(false);
+  resetLiveMetrics();
+
+  if (audio.src) {
+    activateLocalSource();
+    restoreLocalMetadata();
+    systemStatus.textContent = "SIGNAL LOADED";
+  } else {
+    fileName.textContent = "No source selected";
+    fileType.textContent = "NO SOURCE";
+    fileSize.textContent = "—";
+    duration.textContent = "00:00";
+    currentTime.textContent = "00:00";
+    totalTime.textContent = "00:00";
+    if (restoreStatus) systemStatus.textContent = "SYSTEM READY";
+  }
+
+  window.setTimeout(() => {
+    stoppingCapture = false;
+  }, 0);
+}
+
+async function startLiveCapture() {
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    systemStatus.textContent = "CAPTURE UNSUPPORTED";
+    captureButtonHint.textContent = "Use Chrome or Edge over HTTPS";
+    return;
+  }
+
+  try {
+    captureButtonHint.textContent = "Choose a tab and enable shared audio";
+    systemStatus.textContent = "SELECT AUDIO SOURCE";
+    if (!audio.paused) audio.pause();
+    initializeAudioPipeline();
+    if (audioContext.state === "suspended") await audioContext.resume();
+
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+      preferCurrentTab: false,
+      selfBrowserSurface: "exclude",
+      systemAudio: "include",
+      surfaceSwitching: "include",
+    });
+
+    const [audioTrack] = stream.getAudioTracks();
+    if (!audioTrack) {
+      stream.getTracks().forEach((track) => track.stop());
+      systemStatus.textContent = "NO SHARED AUDIO";
+      captureButtonHint.textContent = "Enable Share tab audio and retry";
+      return;
+    }
+
+    disconnectAudioSources();
+    captureStream = stream;
+    captureSource = audioContext.createMediaStreamSource(stream);
+    // Shared tabs already play their own sound, so this path analyzes only.
+    // Connecting it to the destination would create delayed echo.
+    captureSource.connect(analyser);
+    activeSource = "capture";
+
+    fileName.textContent = audioTrack.label || "Shared browser audio";
+    fileType.textContent = "LIVE CAPTURE";
+    fileSize.textContent = "STREAM";
+    duration.textContent = "LIVE";
+    currentTime.textContent = "LIVE";
+    totalTime.textContent = "LIVE";
+    canvasEmpty.classList.add("hidden");
+    visualizerPanel.classList.add("signal-active");
+    setCaptureUi(true);
+    systemStatus.textContent = "CAPTURING LIVE AUDIO";
+
+    stream.getTracks().forEach((track) => {
+      track.addEventListener("ended", () => stopLiveCapture(), { once: true });
+    });
+  } catch (error) {
+    if (error.name !== "NotAllowedError") {
+      console.error("Unable to start tab audio capture:", error);
+      systemStatus.textContent = "CAPTURE ERROR";
+    } else {
+      systemStatus.textContent = "CAPTURE CANCELLED";
+    }
+  }
 }
 
 function drawFrequencyBars(width, height, energy) {
@@ -783,6 +935,7 @@ audioFile.addEventListener("change", (event) => {
   const [file] = event.target.files;
   if (!file) return;
 
+  if (captureStream) stopLiveCapture({ restoreStatus: false });
   if (objectUrl) URL.revokeObjectURL(objectUrl);
   objectUrl = URL.createObjectURL(file);
   audio.src = objectUrl;
@@ -798,7 +951,7 @@ audioFile.addEventListener("change", (event) => {
 });
 
 playButton.addEventListener("click", async () => {
-  initializeAudioPipeline();
+  activateLocalSource();
 
   if (audioContext.state === "suspended") {
     await audioContext.resume();
@@ -806,6 +959,11 @@ playButton.addEventListener("click", async () => {
 
   if (audio.paused) await audio.play();
   else audio.pause();
+});
+
+captureButton.addEventListener("click", async () => {
+  if (captureStream) stopLiveCapture();
+  else await startLiveCapture();
 });
 
 audio.addEventListener("loadedmetadata", () => {
@@ -827,6 +985,7 @@ audio.addEventListener("pause", () => {
 });
 
 audio.addEventListener("timeupdate", () => {
+  if (activeSource === "capture") return;
   const progress = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
   seekBar.value = progress;
   seekBar.style.setProperty("--progress", `${progress}%`);
@@ -895,6 +1054,7 @@ document.querySelector("#themeToggle").addEventListener("click", () => {
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("beforeunload", () => {
   cancelAnimationFrame(animationId);
+  captureStream?.getTracks().forEach((track) => track.stop());
   if (objectUrl) URL.revokeObjectURL(objectUrl);
 });
 

@@ -61,6 +61,22 @@ The system status changes from `SYSTEM READY` to `SIGNAL LOADED`.
 Selecting another file replaces the current track. The previous browser object
 URL is released automatically.
 
+### Capture YouTube or Another Browser Tab
+
+1. Open the source tab and prepare its music or video.
+2. Return to AudioPulse Lab and select **Share tab audio**.
+3. In the browser picker, select the source tab.
+4. Turn on **Share tab audio**.
+5. Select **Share**.
+6. Play the source media.
+
+AudioPulse shows `CAPTURING LIVE AUDIO` while capture is active. Select
+**Stop live capture** or stop sharing from the browser to end the session.
+
+Use Chrome or Edge for the most reliable tab-audio support. The feature
+requires HTTPS or localhost and always requires an explicit browser permission
+prompt.
+
 ### Start Analysis
 
 1. Check the computer's output volume.
@@ -142,6 +158,9 @@ The selection applies only to the current page session.
 | `ANALYZING SIGNAL` | Audio is playing and analysis is active |
 | `SIGNAL PAUSED` | Playback has been paused |
 | `ANALYSIS COMPLETE` | Playback reached the end of the track |
+| `CAPTURING LIVE AUDIO` | A user-approved tab or screen audio stream is active |
+| `NO SHARED AUDIO` | The selected share did not include an audio track |
+| `CAPTURE CANCELLED` | The browser share picker was closed without sharing |
 
 ## 5. Expected Behavior
 
@@ -159,6 +178,13 @@ When playback is paused:
 - The timeline stops advancing.
 - The play control returns to its play icon.
 - The canvas retains analyzer output from the current animation cycle.
+
+During live capture:
+
+- The local play and seek controls are disabled.
+- Playback remains controlled from the shared source tab.
+- The dashboard displays `LIVE CAPTURE`, `STREAM`, and live timing labels.
+- Stopping capture restores the previously loaded local file, when available.
 
 ## 6. Troubleshooting
 
@@ -205,6 +231,19 @@ Modern browsers prevent audio from starting without user interaction.
 
 Resolution: press the app's play button manually. Do not attempt to start
 playback automatically from the console or page load.
+
+### Tab Capture Has No Audio
+
+Resolution:
+
+1. Stop the current capture.
+2. Select **Share tab audio** again.
+3. Choose a browser tab rather than a window when possible.
+4. Enable the picker's **Share tab audio** option.
+5. Confirm the source tab is actively playing and not muted.
+
+Some browsers and operating systems do not support system or window audio.
+Chrome and Edge tab sharing provide the most consistent results.
 
 ### M4A or OGG Does Not Work
 
@@ -278,6 +317,9 @@ Run this checklist after changing the application:
 - [ ] Bass energy updates.
 - [ ] Peak level updates and the warning indicator can activate.
 - [ ] A second file replaces the first cleanly.
+- [ ] Tab capture starts only after browser permission.
+- [ ] Capture without shared audio shows a clear status.
+- [ ] Stopping capture restores local-file controls.
 - [ ] Theme toggling updates the interface and canvas color.
 - [ ] Desktop, tablet, and mobile layouts remain usable.
 - [ ] Keyboard focus indicators are visible.

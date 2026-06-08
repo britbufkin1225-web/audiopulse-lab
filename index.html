@@ -151,24 +151,39 @@
         </aside>
 
         <div class="transport-panel panel">
-          <label class="upload-zone" for="audioFile">
-            <input id="audioFile" type="file" accept="audio/*" />
-            <span class="upload-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M12 16V4M7 9l5-5 5 5M5 14v5h14v-5" />
-              </svg>
-            </span>
-            <span>
-              <strong>Load audio file</strong>
-              <small>MP3, WAV, OGG, M4A</small>
-            </span>
-          </label>
+          <div class="source-options">
+            <label class="upload-zone" for="audioFile">
+              <input id="audioFile" type="file" accept="audio/*" />
+              <span class="upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 16V4M7 9l5-5 5 5M5 14v5h14v-5" />
+                </svg>
+              </span>
+              <span>
+                <strong>Load audio file</strong>
+                <small>MP3, WAV, OGG, M4A</small>
+              </span>
+            </label>
+
+            <button class="capture-button" id="captureButton" type="button">
+              <span class="capture-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <rect x="3" y="4" width="18" height="13" rx="1" />
+                  <path d="M8 21h8M12 17v4M8 10h2l2-3 2 6 2-3h2" />
+                </svg>
+              </span>
+              <span>
+                <strong id="captureButtonLabel">Share tab audio</strong>
+                <small id="captureButtonHint">YouTube, Spotify, or system audio</small>
+              </span>
+            </button>
+          </div>
 
           <div class="track-info">
             <p class="panel-label">NOW ANALYZING</p>
             <strong id="fileName">No file selected</strong>
             <div class="track-meta">
-              <span id="fileType">—</span>
+              <span id="fileType">NO SOURCE</span>
               <span id="fileSize">—</span>
               <span id="duration">00:00</span>
             </div>

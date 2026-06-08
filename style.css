@@ -656,10 +656,15 @@ canvas {
 .transport-panel {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 260px minmax(180px, 1fr) minmax(260px, 1.25fr);
+  grid-template-columns: 290px minmax(180px, 1fr) minmax(260px, 1.25fr);
   gap: 30px;
   align-items: center;
   padding: 21px;
+}
+
+.source-options {
+  display: grid;
+  gap: 8px;
 }
 
 .upload-zone {
@@ -679,6 +684,35 @@ canvas {
   background: rgba(var(--accent-rgb), 0.07);
 }
 
+.capture-button {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 13px;
+  border: 1px solid var(--line-soft);
+  color: var(--text);
+  text-align: left;
+  background: rgba(var(--accent-rgb), 0.018);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.capture-button:hover {
+  border-color: var(--line);
+  background: rgba(var(--accent-rgb), 0.06);
+}
+
+.capture-button.active {
+  border-color: var(--danger);
+  background: rgba(255, 66, 111, 0.06);
+}
+
+.capture-button.active .capture-icon {
+  border-color: rgba(255, 66, 111, 0.3);
+  color: var(--danger);
+}
+
 .upload-zone input {
   position: absolute;
   width: 1px;
@@ -687,7 +721,8 @@ canvas {
   opacity: 0;
 }
 
-.upload-icon {
+.upload-icon,
+.capture-icon {
   display: grid;
   width: 40px;
   height: 40px;
@@ -697,7 +732,8 @@ canvas {
   place-items: center;
 }
 
-.upload-icon svg {
+.upload-icon svg,
+.capture-icon svg {
   width: 18px;
   fill: none;
   stroke: currentColor;
@@ -707,6 +743,7 @@ canvas {
 }
 
 .upload-zone strong,
+.capture-button strong,
 .track-info > strong {
   display: block;
   overflow: hidden;
@@ -716,7 +753,8 @@ canvas {
   white-space: nowrap;
 }
 
-.upload-zone small {
+.upload-zone small,
+.capture-button small {
   display: block;
   margin-top: 5px;
   color: var(--muted);

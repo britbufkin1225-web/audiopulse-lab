@@ -11,6 +11,7 @@ inside the browser. Uploaded files are not sent to a server.
 ## Features
 
 - Local audio upload for formats supported by the browser
+- Live browser-tab and system-audio capture with explicit user permission
 - Play, pause, and timeline seeking
 - Animated frequency bars rendered on an HTML canvas
 - Mirrored spectrum reflections with falling peak caps
@@ -103,6 +104,20 @@ See [OPERATIONS.md](OPERATIONS.md) for complete user instructions.
 7. Drag the timeline to seek through the track.
 8. Use the theme button in the upper-right corner to switch themes.
 
+### Analyze YouTube or Another Music App
+
+1. Open the music source in another browser tab.
+2. Select **Share tab audio** in AudioPulse Lab.
+3. Choose the music tab in the browser picker.
+4. Enable **Share tab audio** in the picker.
+5. Select **Share** and start playback in the music tab.
+6. Return to AudioPulse Lab or use fullscreen mode.
+7. Select **Stop live capture** when finished.
+
+Tab capture requires a secure context such as HTTPS or localhost. The browser
+always requires the user to choose what is shared; the app cannot silently
+capture another tab.
+
 AudioContext initialization happens after the play button is pressed because
 modern browsers require a user gesture before audio can start.
 
@@ -119,20 +134,28 @@ HTMLAudioElement
       v
 MediaElementAudioSourceNode
       |
-      v
-AnalyserNode
+      +----> AnalyserNode ----> Canvas and dashboard meters
       |
-      +----> Frequency and waveform data ----> Canvas and dashboard meters
-      |
-      v
-AudioContext destination
-      |
-      v
-Speakers or headphones
+      `----> AudioContext destination ----> Speakers or headphones
 ```
 
-The `AnalyserNode` observes the signal without modifying it. The audio then
-continues to the browser's output destination for normal playback.
+Live capture uses a separate path:
+
+```text
+User-approved browser tab or screen
+      |
+      v
+MediaStreamAudioSourceNode
+      |
+      v
+AnalyserNode
+```
+
+Captured audio is not connected to the app's output destination because the
+shared tab already plays it. This avoids delayed echo.
+
+The `AnalyserNode` observes the signal without modifying it. Local playback
+uses a parallel connection from the media source to the output destination.
 
 ### Analyzer Configuration
 

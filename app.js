@@ -30,6 +30,7 @@ const geometryToggle = document.querySelector("#geometryToggle");
 const fractalsToggle = document.querySelector("#fractalsToggle");
 const macroToggle = document.querySelector("#macroToggle");
 const bassStutterToggle = document.querySelector("#bassStutterToggle");
+const tripVisualsToggle = document.querySelector("#tripVisualsToggle");
 const resetControls = document.querySelector("#resetControls");
 const customColor = document.querySelector("#customColor");
 const moodSwatches = document.querySelectorAll(".mood-swatch");
@@ -112,6 +113,7 @@ const controlDefaults = {
   fractals: true,
   macro: true,
   bassStutter: true,
+  tripVisuals: true,
   mood: "neon",
   accent: "#b7ff33",
   style: "cyber",
@@ -735,6 +737,139 @@ function drawBassStutterLayer(width, height, deltaTime, time) {
   ctx.restore();
 }
 
+function drawTripVisualsLayer(width, height, energy, time) {
+  if (!visualControls.tripVisuals || reducedMotion) return;
+
+  const style = getVisualStyle();
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const shortSide = Math.min(width, height);
+  const bass = frequencyData?.[5] / 255 || 0;
+  const mid = frequencyData?.[42] / 255 || 0;
+  const treble = frequencyData?.[104] / 255 || 0;
+  const segments = width < 520 || style.barMode === "minimal" ? 6 : 10;
+
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.globalCompositeOperation = "lighter";
+
+  // Receding rings create a slow tunnel while alternating rotation prevents
+  // the layer from reading as a flat set of concentric circles.
+  for (let ring = 0; ring < 7; ring += 1) {
+    const progress = (ring / 7 + time * 0.000035) % 1;
+    const radius = shortSide * (0.05 + progress * 0.62);
+    const alpha = (1 - progress) * (0.055 + energy * 0.09);
+    const ringColor = isPrismatic()
+      ? prismaticColor(progress, time, alpha, ring * 29)
+      : ring % 2
+        ? `rgba(255, 66, 151, ${alpha})`
+        : `rgba(${getThemeColor("--accent-rgb")}, ${alpha})`;
+
+    ctx.save();
+    ctx.rotate(time * 0.000025 * (ring % 2 ? 1 : -1) + ring * 0.18);
+    ctx.scale(1, 0.5 + Math.sin(time * 0.0003 + ring) * 0.08);
+    ctx.strokeStyle = ringColor;
+    ctx.shadowColor = ringColor;
+    ctx.shadowBlur = (8 + bass * 18) * style.glow;
+    ctx.lineWidth = 0.6 + (1 - progress) * 1.2;
+    ctx.beginPath();
+    const sides = 6 + (ring % 3) * 2;
+    for (let vertex = 0; vertex <= sides; vertex += 1) {
+      const angle = (vertex / sides) * Math.PI * 2;
+      const ripple = 1 + Math.sin(angle * 3 + time * 0.0008) * mid * 0.08;
+      const x = Math.cos(angle) * radius * ripple;
+      const y = Math.sin(angle) * radius * ripple;
+      if (vertex === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Mirrored petals form a kaleidoscope whose length and curvature are
+  // controlled by separate frequency bands.
+  ctx.rotate(time * 0.000055);
+  for (let segment = 0; segment < segments; segment += 1) {
+    const angle = (segment / segments) * Math.PI * 2;
+    const colorPosition = segment / segments;
+    const color = isPrismatic()
+      ? prismaticColor(colorPosition, time, 0.14 + energy * 0.2, segment * 17)
+      : segment % 2
+        ? `rgba(51, 230, 255, ${0.08 + energy * 0.14})`
+        : `rgba(255, 66, 151, ${0.08 + energy * 0.14})`;
+
+    ctx.save();
+    ctx.rotate(angle);
+    if (segment % 2) ctx.scale(1, -1);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = (5 + treble * 14) * style.glow;
+    ctx.lineWidth = 0.55 + treble * 0.8;
+
+    const inner = shortSide * (0.07 + bass * 0.025);
+    const outer = shortSide * (0.28 + mid * 0.09);
+    const curl = shortSide * (0.05 + treble * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(inner, 0);
+    ctx.bezierCurveTo(
+      outer * 0.42,
+      curl,
+      outer * 0.72,
+      -curl,
+      outer,
+      Math.sin(time * 0.0007 + segment) * curl * 0.35
+    );
+    ctx.bezierCurveTo(
+      outer * 0.68,
+      curl * 0.7,
+      outer * 0.35,
+      -curl * 0.45,
+      inner,
+      0
+    );
+    ctx.closePath();
+    ctx.globalAlpha = 0.16 + energy * 0.18;
+    ctx.fill();
+    ctx.globalAlpha = 0.52 + energy * 0.24;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Three long chromatic ribbons introduce slow spatial warping through the
+  // center without obscuring the primary spectrum renderer.
+  ctx.rotate(-time * 0.00009);
+  for (let ribbon = 0; ribbon < 3; ribbon += 1) {
+    const phase = time * (0.00045 + ribbon * 0.00008) + ribbon * 2.2;
+    const color = isPrismatic()
+      ? prismaticColor(ribbon / 3 + 0.12, time, 0.2 + treble * 0.16)
+      : ribbon === 0
+        ? `rgba(${getThemeColor("--accent-rgb")}, ${0.12 + treble * 0.12})`
+        : ribbon === 1
+          ? `rgba(255, 66, 151, ${0.1 + treble * 0.12})`
+          : `rgba(51, 230, 255, ${0.1 + treble * 0.12})`;
+
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10 + energy * 20;
+    ctx.lineWidth = 0.8 + mid * 1.4;
+    ctx.beginPath();
+    for (let point = 0; point <= 48; point += 1) {
+      const ratio = point / 48;
+      const x = (ratio - 0.5) * width * 0.92;
+      const y =
+        Math.sin(ratio * Math.PI * (3 + ribbon) + phase) *
+        shortSide *
+        (0.08 + mid * 0.06);
+      if (point === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 function traceFractalBranch(length, depth, angle, time, colorPosition) {
   if (depth <= 0 || length < 2) return;
 
@@ -1234,6 +1369,7 @@ function updateControlInterface() {
   fractalsToggle.checked = visualControls.fractals;
   macroToggle.checked = visualControls.macro;
   bassStutterToggle.checked = visualControls.bassStutter;
+  tripVisualsToggle.checked = visualControls.tripVisuals;
   applyColorMood();
   applyVisualStyle();
 
@@ -1844,6 +1980,7 @@ function animate() {
     drawNeonLights(width, height, visualEnergy, visualTime);
     drawColorRain(width, height, visualEnergy, visualTime, visualDelta);
     drawMacroLayer(width, height, visualEnergy, visualTime);
+    drawTripVisualsLayer(width, height, visualEnergy, visualTime);
     drawGeometryLayer(width, height, visualEnergy, visualTime);
     if (visualizationMode === "frequency") {
       drawFrequencyBars(width, height, visualEnergy, visualTime);
@@ -1976,6 +2113,11 @@ macroToggle.addEventListener("change", () => {
 bassStutterToggle.addEventListener("change", () => {
   visualControls.bassStutter = bassStutterToggle.checked;
   if (!visualControls.bassStutter) bassStutterLevel = 0;
+  saveVisualControls();
+});
+
+tripVisualsToggle.addEventListener("change", () => {
+  visualControls.tripVisuals = tripVisualsToggle.checked;
   saveVisualControls();
 });
 

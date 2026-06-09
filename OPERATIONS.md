@@ -141,6 +141,8 @@ Use the manual control deck to adjust the presentation:
 - **Bass stutter:** shows or hides dubstep-inspired gated frame slices and
   repeating pulse rings triggered by strong low-frequency transients. This is
   a visual effect and does not alter the audio playback.
+- **Trip visuals:** shows or hides a frequency-reactive kaleidoscope, receding
+  polygon tunnel, and chromatic ribbon trails.
 - **Color mood:** selects Neon, Cyan, Magenta, Amber, Prismatic, Oil Slick, or
   a custom color. Prismatic shows multiple continuously shifting hues
   simultaneously. Oil Slick adds shifting interference colors and an

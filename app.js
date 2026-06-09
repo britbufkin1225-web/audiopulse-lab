@@ -31,6 +31,7 @@ const fractalsToggle = document.querySelector("#fractalsToggle");
 const macroToggle = document.querySelector("#macroToggle");
 const bassStutterToggle = document.querySelector("#bassStutterToggle");
 const tripVisualsToggle = document.querySelector("#tripVisualsToggle");
+const depth3dToggle = document.querySelector("#depth3dToggle");
 const resetControls = document.querySelector("#resetControls");
 const directorToggle = document.querySelector("#directorToggle");
 const directorStatus = document.querySelector("#directorStatus");
@@ -126,6 +127,7 @@ const controlDefaults = {
   macro: true,
   bassStutter: true,
   tripVisuals: true,
+  depth3d: true,
   mood: "neon",
   accent: "#b7ff33",
   style: "cyber",
@@ -155,6 +157,7 @@ const directorScenes = [
       macro: true,
       bassStutter: true,
       tripVisuals: false,
+      depth3d: true,
     },
   },
   {
@@ -172,6 +175,7 @@ const directorScenes = [
       macro: true,
       bassStutter: false,
       tripVisuals: true,
+      depth3d: true,
     },
   },
   {
@@ -189,6 +193,7 @@ const directorScenes = [
       macro: false,
       bassStutter: true,
       tripVisuals: false,
+      depth3d: true,
     },
   },
   {
@@ -206,6 +211,7 @@ const directorScenes = [
       macro: false,
       bassStutter: false,
       tripVisuals: true,
+      depth3d: true,
     },
   },
   {
@@ -223,6 +229,7 @@ const directorScenes = [
       macro: true,
       bassStutter: false,
       tripVisuals: false,
+      depth3d: true,
     },
   },
 ];
@@ -969,6 +976,162 @@ function drawTripVisualsLayer(width, height, energy, time) {
   ctx.restore();
 }
 
+function rotatePoint3d(point, rotationX, rotationY, rotationZ) {
+  const cosX = Math.cos(rotationX);
+  const sinX = Math.sin(rotationX);
+  const cosY = Math.cos(rotationY);
+  const sinY = Math.sin(rotationY);
+  const cosZ = Math.cos(rotationZ);
+  const sinZ = Math.sin(rotationZ);
+
+  const y1 = point.y * cosX - point.z * sinX;
+  const z1 = point.y * sinX + point.z * cosX;
+  const x2 = point.x * cosY + z1 * sinY;
+  const z2 = -point.x * sinY + z1 * cosY;
+  return {
+    x: x2 * cosZ - y1 * sinZ,
+    y: x2 * sinZ + y1 * cosZ,
+    z: z2,
+  };
+}
+
+function projectPoint3d(point, centerX, centerY, focalLength) {
+  const depth = Math.max(0.35, point.z + 3.2);
+  const scale = focalLength / depth;
+  return {
+    x: centerX + point.x * scale,
+    y: centerY + point.y * scale,
+    scale,
+    depth,
+  };
+}
+
+function drawDepth3dLayer(width, height, energy, time) {
+  if (!visualControls.depth3d || reducedMotion) return;
+
+  const style = getVisualStyle();
+  const centerX = width / 2;
+  const horizon = height * 0.43;
+  const focalLength = Math.min(width, height) * 0.72;
+  const bass = frequencyData?.[5] / 255 || 0;
+  const mid = frequencyData?.[38] / 255 || 0;
+  const treble = frequencyData?.[105] / 255 || 0;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  // A moving perspective floor establishes the camera and vanishing point.
+  const floorTop = horizon;
+  const floorBottom = height * 0.96;
+  for (let column = -7; column <= 7; column += 1) {
+    const ratio = column / 7;
+    const color = isPrismatic()
+      ? prismaticColor((ratio + 1) / 2, time, 0.08 + energy * 0.08)
+      : `rgba(${getThemeColor("--accent-rgb")}, ${0.045 + energy * 0.065})`;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(centerX + ratio * width * 0.055, floorTop);
+    ctx.lineTo(centerX + ratio * width * 0.72, floorBottom);
+    ctx.stroke();
+  }
+
+  const gridOffset = (time * 0.00009 * (0.7 + bass)) % 1;
+  for (let line = 0; line < 11; line += 1) {
+    const progress = (line / 11 + gridOffset) % 1;
+    const perspective = progress * progress;
+    const y = floorTop + perspective * (floorBottom - floorTop);
+    const halfWidth = width * (0.05 + perspective * 0.67);
+    ctx.strokeStyle = isPrismatic()
+      ? prismaticColor(progress, time, 0.045 + progress * 0.11)
+      : `rgba(${getThemeColor("--accent-rgb")}, ${0.035 + progress * 0.1})`;
+    ctx.beginPath();
+    ctx.moveTo(centerX - halfWidth, y);
+    ctx.lineTo(centerX + halfWidth, y);
+    ctx.stroke();
+  }
+
+  const cubeVertices = [
+    { x: -1, y: -1, z: -1 },
+    { x: 1, y: -1, z: -1 },
+    { x: 1, y: 1, z: -1 },
+    { x: -1, y: 1, z: -1 },
+    { x: -1, y: -1, z: 1 },
+    { x: 1, y: -1, z: 1 },
+    { x: 1, y: 1, z: 1 },
+    { x: -1, y: 1, z: 1 },
+  ];
+  const cubeEdges = [
+    [0, 1], [1, 2], [2, 3], [3, 0],
+    [4, 5], [5, 6], [6, 7], [7, 4],
+    [0, 4], [1, 5], [2, 6], [3, 7],
+  ];
+  const objects = width < 580 ? 2 : 4;
+
+  for (let object = 0; object < objects; object += 1) {
+    const cycle = (time * (0.000045 + object * 0.000006) + object * 0.24) % 1;
+    const zPosition = 5.8 - cycle * 6.5 - bass * 0.42;
+    const xPosition =
+      (object - (objects - 1) / 2) * 1.45 +
+      Math.sin(time * 0.00028 + object * 2.1) * 0.32;
+    const yPosition = Math.cos(time * 0.00022 + object) * 0.36;
+    const size = 0.34 + object * 0.055 + energy * 0.08;
+    const rotationX = time * (0.00016 + mid * 0.00018) + object;
+    const rotationY = time * (0.0002 + bass * 0.00015) - object * 0.7;
+    const rotationZ = time * 0.00008 * (object % 2 ? -1 : 1);
+    const projected = cubeVertices.map((vertex) => {
+      const rotated = rotatePoint3d(
+        {
+          x: vertex.x * size,
+          y: vertex.y * size,
+          z: vertex.z * size,
+        },
+        rotationX,
+        rotationY,
+        rotationZ
+      );
+      return projectPoint3d(
+        {
+          x: rotated.x + xPosition,
+          y: rotated.y + yPosition,
+          z: rotated.z + zPosition,
+        },
+        centerX,
+        horizon,
+        focalLength
+      );
+    });
+
+    const depthAlpha = Math.max(0.06, Math.min(0.58, (6.2 - zPosition) * 0.1));
+    const color = isPrismatic()
+      ? prismaticColor(object / objects, time, depthAlpha, object * 43)
+      : object % 2
+        ? `rgba(51, 230, 255, ${depthAlpha})`
+        : `rgba(${getThemeColor("--accent-rgb")}, ${depthAlpha})`;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = (5 + treble * 18) * style.glow;
+    ctx.lineWidth = 0.55 + treble * 0.9;
+
+    for (const [start, end] of cubeEdges) {
+      ctx.beginPath();
+      ctx.moveTo(projected[start].x, projected[start].y);
+      ctx.lineTo(projected[end].x, projected[end].y);
+      ctx.stroke();
+    }
+
+    for (const point of projected) {
+      const radius = Math.max(0.5, point.scale * 0.008);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
 function traceFractalBranch(length, depth, angle, time, colorPosition) {
   if (depth <= 0 || length < 2) return;
 
@@ -1610,6 +1773,7 @@ function updateControlInterface() {
   macroToggle.checked = visualControls.macro;
   bassStutterToggle.checked = visualControls.bassStutter;
   tripVisualsToggle.checked = visualControls.tripVisuals;
+  depth3dToggle.checked = visualControls.depth3d;
   applyColorMood();
   applyVisualStyle();
 
@@ -2223,6 +2387,7 @@ function animate() {
     drawNeonLights(width, height, visualEnergy, visualTime);
     drawColorRain(width, height, visualEnergy, visualTime, visualDelta);
     drawMacroLayer(width, height, visualEnergy, visualTime);
+    drawDepth3dLayer(width, height, visualEnergy, visualTime);
     drawTripVisualsLayer(width, height, visualEnergy, visualTime);
     drawGeometryLayer(width, height, visualEnergy, visualTime);
     if (visualizationMode === "frequency") {
@@ -2361,6 +2526,11 @@ bassStutterToggle.addEventListener("change", () => {
 
 tripVisualsToggle.addEventListener("change", () => {
   visualControls.tripVisuals = tripVisualsToggle.checked;
+  saveVisualControls();
+});
+
+depth3dToggle.addEventListener("change", () => {
+  visualControls.depth3d = depth3dToggle.checked;
   saveVisualControls();
 });
 

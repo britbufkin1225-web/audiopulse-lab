@@ -143,6 +143,9 @@ Use the manual control deck to adjust the presentation:
   a visual effect and does not alter the audio playback.
 - **Trip visuals:** shows or hides a frequency-reactive kaleidoscope, receding
   polygon tunnel, and chromatic ribbon trails.
+- **3D depth:** shows or hides a perspective floor and rotating wireframe
+  solids that travel toward the camera. Bass controls forward motion, mids
+  affect rotation, and treble brightens the object edges.
 - **Auto director:** cycles curated combinations of modes, moods, styles, and
   layers every 14 seconds. Strong bass drops can advance the scene after a
   seven-second safety interval.

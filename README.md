@@ -31,6 +31,7 @@ inside the browser. Uploaded files are not sent to a server.
 - Gigantic macro forms with slow parallax, color refraction, and bass-reactive scale
 - Dubstep-inspired visual bass stutter with gated frame slices and repeating pulse rings
 - Trip visuals with kaleidoscope petals, a receding tunnel, and chromatic ribbon trails
+- Canvas-native 3D depth with a perspective floor and approaching wireframe solids
 - Automatic scene director with timed scenes and bass-drop transitions
 - Canvas recording exported as a downloadable WebM visual performance
 - Versioned JSON preset export and validated preset import

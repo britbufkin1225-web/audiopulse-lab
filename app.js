@@ -28,6 +28,7 @@ const neonLightsToggle = document.querySelector("#neonLightsToggle");
 const colorRainToggle = document.querySelector("#colorRainToggle");
 const geometryToggle = document.querySelector("#geometryToggle");
 const fractalsToggle = document.querySelector("#fractalsToggle");
+const macroToggle = document.querySelector("#macroToggle");
 const resetControls = document.querySelector("#resetControls");
 const customColor = document.querySelector("#customColor");
 const moodSwatches = document.querySelectorAll(".mood-swatch");
@@ -79,6 +80,12 @@ const colorDrops = Array.from({ length: 58 }, (_, index) => ({
   hue: ((index * 37) % 100) / 100,
   band: (index * 13) % 110,
 }));
+const macroForms = [
+  { type: "orb", x: -0.2, y: 0.24, scale: 0.62, speed: 0.000018, band: 4, hue: 0.08 },
+  { type: "ring", x: 1.18, y: 0.7, scale: 0.78, speed: -0.000014, band: 18, hue: 0.42 },
+  { type: "slab", x: 0.52, y: -0.28, scale: 0.68, speed: 0.000011, band: 48, hue: 0.72 },
+  { type: "orb", x: 0.72, y: 1.2, scale: 0.54, speed: -0.000016, band: 82, hue: 0.9 },
+];
 const spectrumHistory = [];
 const shockwaves = [];
 const arcBursts = [];
@@ -100,6 +107,7 @@ const controlDefaults = {
   colorRain: true,
   geometry: true,
   fractals: true,
+  macro: true,
   mood: "neon",
   accent: "#b7ff33",
   style: "cyber",
@@ -538,6 +546,108 @@ function drawGeometryLayer(width, height, energy, time) {
       }
       ctx.globalAlpha = 1;
     }
+  }
+
+  ctx.restore();
+}
+
+function drawMacroLayer(width, height, energy, time) {
+  if (!visualControls.macro || reducedMotion) return;
+
+  const style = getVisualStyle();
+  const shortSide = Math.min(width, height);
+
+  ctx.save();
+  ctx.globalCompositeOperation = isOilSlick() ? "screen" : "lighter";
+
+  for (let index = 0; index < macroForms.length; index += 1) {
+    const form = macroForms[index];
+    const magnitude =
+      frequencyData?.[Math.min(form.band, frequencyData.length - 1)] / 255 || 0;
+    const phase = time * form.speed + index * 1.9;
+    const driftX = Math.sin(phase * 1.7) * width * 0.2;
+    const driftY = Math.cos(phase * 1.13) * height * 0.15;
+    const x = form.x * width + driftX;
+    const y = form.y * height + driftY;
+    const radius =
+      shortSide * form.scale * (0.82 + magnitude * 0.22 + energy * 0.08);
+    const color = isPrismatic()
+      ? prismaticColor(form.hue, time, 1, index * 47)
+      : index % 2
+        ? `rgb(${getThemeColor("--accent-rgb")})`
+        : "rgb(51, 230, 255)";
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(phase * 0.7);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = (24 + magnitude * 48) * style.glow;
+
+    if (form.type === "orb") {
+      const lens = ctx.createRadialGradient(
+        -radius * 0.18,
+        -radius * 0.2,
+        radius * 0.03,
+        0,
+        0,
+        radius
+      );
+      lens.addColorStop(0, color);
+      lens.addColorStop(0.16, prismaticColor(form.hue + 0.18, time, 0.1));
+      lens.addColorStop(0.5, prismaticColor(form.hue + 0.46, time, 0.035));
+      lens.addColorStop(0.82, prismaticColor(form.hue + 0.72, time, 0.075));
+      lens.addColorStop(1, "transparent");
+      ctx.globalAlpha = 0.13 + magnitude * 0.14;
+      ctx.fillStyle = lens;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 0.12 + magnitude * 0.25;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1 + magnitude * 2.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.82, -0.9, Math.PI * 0.7);
+      ctx.stroke();
+    } else if (form.type === "ring") {
+      const ringGradient = prismaticGradient(
+        ctx,
+        -radius,
+        0,
+        radius,
+        0,
+        time + index * 310,
+        0.55
+      );
+      ctx.globalAlpha = 0.13 + magnitude * 0.28;
+      ctx.strokeStyle = ringGradient;
+      ctx.lineWidth = radius * (0.06 + magnitude * 0.04);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius, radius * 0.42, phase, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.globalAlpha *= 0.55;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius * 0.72, radius * 0.3, -phase, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      const slab = ctx.createLinearGradient(-radius, 0, radius, 0);
+      slab.addColorStop(0, "transparent");
+      slab.addColorStop(0.22, prismaticColor(form.hue, time, 0.035));
+      slab.addColorStop(0.52, prismaticColor(form.hue + 0.34, time, 0.12));
+      slab.addColorStop(0.8, prismaticColor(form.hue + 0.68, time, 0.035));
+      slab.addColorStop(1, "transparent");
+      ctx.globalAlpha = 0.2 + magnitude * 0.2;
+      ctx.fillStyle = slab;
+      ctx.transform(1, 0.24, -0.28, 1, 0, 0);
+      ctx.fillRect(-radius, -radius * 0.2, radius * 2, radius * 0.4);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(-radius, -radius * 0.2, radius * 2, radius * 0.4);
+    }
+
+    ctx.restore();
   }
 
   ctx.restore();
@@ -1030,6 +1140,7 @@ function updateControlInterface() {
   colorRainToggle.checked = visualControls.colorRain;
   geometryToggle.checked = visualControls.geometry;
   fractalsToggle.checked = visualControls.fractals;
+  macroToggle.checked = visualControls.macro;
   applyColorMood();
   applyVisualStyle();
 
@@ -1639,6 +1750,7 @@ function animate() {
     drawLiquidMembrane(width, height, visualEnergy, visualTime);
     drawNeonLights(width, height, visualEnergy, visualTime);
     drawColorRain(width, height, visualEnergy, visualTime, visualDelta);
+    drawMacroLayer(width, height, visualEnergy, visualTime);
     drawGeometryLayer(width, height, visualEnergy, visualTime);
     if (visualizationMode === "frequency") {
       drawFrequencyBars(width, height, visualEnergy, visualTime);
@@ -1759,6 +1871,11 @@ geometryToggle.addEventListener("change", () => {
 
 fractalsToggle.addEventListener("change", () => {
   visualControls.fractals = fractalsToggle.checked;
+  saveVisualControls();
+});
+
+macroToggle.addEventListener("change", () => {
+  visualControls.macro = macroToggle.checked;
   saveVisualControls();
 });
 

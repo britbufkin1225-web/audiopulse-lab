@@ -28,6 +28,7 @@ inside the browser. Uploaded files are not sent to a server.
 - Multi-speed color rain with frequency-reactive density, streaks, and droplets
 - Rotating geometric lattices with frequency-reactive polygon vertices
 - Mirrored recursive fractal branches that grow and sway with the signal
+- Gigantic macro forms with slow parallax, color refraction, and bass-reactive scale
 - Neon, cyan, magenta, amber, custom, animated Prismatic, and Oil Slick color moods
 - Audio-reactive liquid membrane with flowing interference colors in Oil Slick mode
 - Five canvas rendering styles: Cyber, Hologram, Laser, Minimal, and Aurora

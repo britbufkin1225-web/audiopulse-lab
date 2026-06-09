@@ -138,6 +138,9 @@ Use the manual control deck to adjust the presentation:
   with the analyzed signal.
 - **Macro forms:** shows or hides gigantic drifting orbs, rings, and slabs with
   slow parallax, palette refraction, and low-frequency scaling.
+- **Bass stutter:** shows or hides dubstep-inspired gated frame slices and
+  repeating pulse rings triggered by strong low-frequency transients. This is
+  a visual effect and does not alter the audio playback.
 - **Color mood:** selects Neon, Cyan, Magenta, Amber, Prismatic, Oil Slick, or
   a custom color. Prismatic shows multiple continuously shifting hues
   simultaneously. Oil Slick adds shifting interference colors and an

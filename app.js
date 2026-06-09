@@ -29,6 +29,7 @@ const colorRainToggle = document.querySelector("#colorRainToggle");
 const geometryToggle = document.querySelector("#geometryToggle");
 const fractalsToggle = document.querySelector("#fractalsToggle");
 const macroToggle = document.querySelector("#macroToggle");
+const bassStutterToggle = document.querySelector("#bassStutterToggle");
 const resetControls = document.querySelector("#resetControls");
 const customColor = document.querySelector("#customColor");
 const moodSwatches = document.querySelectorAll(".mood-swatch");
@@ -70,6 +71,8 @@ let peakCaps = [];
 let lastHistoryCapture = 0;
 let previousBassPulse = 0;
 let lastBeatTime = 0;
+let bassStutterLevel = 0;
+let bassStutterPhase = 0;
 const particles = [];
 const colorDrops = Array.from({ length: 58 }, (_, index) => ({
   x: ((index * 73) % 101) / 100,
@@ -108,6 +111,7 @@ const controlDefaults = {
   geometry: true,
   fractals: true,
   macro: true,
+  bassStutter: true,
   mood: "neon",
   accent: "#b7ff33",
   style: "cyber",
@@ -653,6 +657,84 @@ function drawMacroLayer(width, height, energy, time) {
   ctx.restore();
 }
 
+function drawBassStutterLayer(width, height, deltaTime, time) {
+  if (!visualControls.bassStutter || reducedMotion) {
+    bassStutterLevel = 0;
+    return;
+  }
+
+  bassStutterLevel = Math.max(0, bassStutterLevel - 0.026 * deltaTime);
+  if (bassStutterLevel <= 0.01) return;
+
+  bassStutterPhase += deltaTime * (0.75 + bassStutterLevel * 2.8);
+  const gate = Math.pow(Math.max(0, Math.sin(bassStutterPhase * Math.PI)), 5);
+  const strength = bassStutterLevel * (0.28 + gate * 0.72);
+  const pixelRatio = canvas.width / Math.max(width, 1);
+  const slices = 7;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  // Repeated horizontal copies of the current frame create a gated visual
+  // stutter while leaving the audio signal itself completely unchanged.
+  for (let index = 0; index < slices; index += 1) {
+    const sliceHeight = height / slices;
+    const sliceY = index * sliceHeight;
+    const direction = index % 2 === 0 ? 1 : -1;
+    const shift =
+      direction *
+      (3 + index * 1.7) *
+      strength *
+      Math.sin(bassStutterPhase * 2.1 + index);
+
+    ctx.globalAlpha = 0.055 + strength * 0.11;
+    ctx.drawImage(
+      canvas,
+      0,
+      sliceY * pixelRatio,
+      canvas.width,
+      sliceHeight * pixelRatio,
+      shift,
+      sliceY,
+      width,
+      sliceHeight
+    );
+
+    const sliceColor = isPrismatic()
+      ? prismaticColor(index / slices, time, 0.22 + strength * 0.24, index * 18)
+      : index % 2
+        ? `rgba(255, 66, 151, ${0.08 + strength * 0.16})`
+        : `rgba(${getThemeColor("--accent-rgb")}, ${0.08 + strength * 0.16})`;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = sliceColor;
+    ctx.fillRect(0, sliceY + sliceHeight * gate, width, 1 + strength * 2);
+  }
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const shortSide = Math.min(width, height);
+  ctx.translate(centerX, centerY);
+  ctx.lineWidth = 0.8 + strength * 2.2;
+  ctx.shadowBlur = 14 + strength * 34;
+
+  for (let pulse = 0; pulse < 4; pulse += 1) {
+    const pulseProgress = (bassStutterPhase * 0.16 + pulse / 4) % 1;
+    const radius = shortSide * (0.08 + pulseProgress * 0.54);
+    const color = isPrismatic()
+      ? prismaticColor(pulseProgress, time, (1 - pulseProgress) * strength * 0.55)
+      : `rgba(${getThemeColor("--accent-rgb")}, ${
+          (1 - pulseProgress) * strength * 0.42
+        })`;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radius, radius * 0.34, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 function traceFractalBranch(length, depth, angle, time, colorPosition) {
   if (depth <= 0 || length < 2) return;
 
@@ -970,7 +1052,11 @@ function captureSpectrumHistory(time) {
 }
 
 function detectBeat(time) {
-  if (!audioContext || !frequencyData?.length || !visualControls.beatFx) return;
+  if (
+    !audioContext ||
+    !frequencyData?.length ||
+    (!visualControls.beatFx && !visualControls.bassStutter)
+  ) return;
 
   const binWidth = audioContext.sampleRate / analyser.fftSize;
   const lastBeatBin = Math.min(frequencyData.length - 1, Math.ceil(180 / binWidth));
@@ -983,14 +1069,20 @@ function detectBeat(time) {
   const bassPulse = bassTotal / lastBeatBin / 255;
   const transient = bassPulse - previousBassPulse;
   if (bassPulse > 0.48 && transient > 0.055 && time - lastBeatTime > 190) {
-    shockwaves.push({ life: 1, strength: bassPulse });
-    if (shockwaves.length > 5) shockwaves.shift();
-    arcBursts.push({
-      life: 1,
-      rotation: Math.random() * Math.PI * 2,
-      strength: bassPulse,
-    });
-    if (arcBursts.length > 6) arcBursts.shift();
+    if (visualControls.beatFx) {
+      shockwaves.push({ life: 1, strength: bassPulse });
+      if (shockwaves.length > 5) shockwaves.shift();
+      arcBursts.push({
+        life: 1,
+        rotation: Math.random() * Math.PI * 2,
+        strength: bassPulse,
+      });
+      if (arcBursts.length > 6) arcBursts.shift();
+    }
+    if (visualControls.bassStutter) {
+      bassStutterLevel = Math.min(1, 0.48 + bassPulse * 0.68);
+      bassStutterPhase = 0;
+    }
     lastBeatTime = time;
   }
 
@@ -1141,6 +1233,7 @@ function updateControlInterface() {
   geometryToggle.checked = visualControls.geometry;
   fractalsToggle.checked = visualControls.fractals;
   macroToggle.checked = visualControls.macro;
+  bassStutterToggle.checked = visualControls.bassStutter;
   applyColorMood();
   applyVisualStyle();
 
@@ -1762,6 +1855,7 @@ function animate() {
       drawSpectrumField(width, height, visualEnergy, visualTime);
     }
 
+    drawBassStutterLayer(width, height, visualDelta, visualTime);
     drawFractalLayer(width, height, visualEnergy, visualTime);
     drawSignalNetwork(width, height, visualEnergy, visualTime);
     drawEnergyArcs(width, height, visualEnergy, visualTime, visualDelta);
@@ -1876,6 +1970,12 @@ fractalsToggle.addEventListener("change", () => {
 
 macroToggle.addEventListener("change", () => {
   visualControls.macro = macroToggle.checked;
+  saveVisualControls();
+});
+
+bassStutterToggle.addEventListener("change", () => {
+  visualControls.bassStutter = bassStutterToggle.checked;
+  if (!visualControls.bassStutter) bassStutterLevel = 0;
   saveVisualControls();
 });
 

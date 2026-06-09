@@ -32,6 +32,13 @@ const macroToggle = document.querySelector("#macroToggle");
 const bassStutterToggle = document.querySelector("#bassStutterToggle");
 const tripVisualsToggle = document.querySelector("#tripVisualsToggle");
 const resetControls = document.querySelector("#resetControls");
+const directorToggle = document.querySelector("#directorToggle");
+const directorStatus = document.querySelector("#directorStatus");
+const recordButton = document.querySelector("#recordButton");
+const recordStatus = document.querySelector("#recordStatus");
+const exportPreset = document.querySelector("#exportPreset");
+const importPreset = document.querySelector("#importPreset");
+const presetStatus = document.querySelector("#presetStatus");
 const customColor = document.querySelector("#customColor");
 const moodSwatches = document.querySelectorAll(".mood-swatch");
 const styleOptions = document.querySelectorAll(".style-option");
@@ -74,6 +81,11 @@ let previousBassPulse = 0;
 let lastBeatTime = 0;
 let bassStutterLevel = 0;
 let bassStutterPhase = 0;
+let directorActive = false;
+let directorSceneIndex = -1;
+let lastDirectorChange = 0;
+let mediaRecorder;
+let recordedChunks = [];
 const particles = [];
 const colorDrops = Array.from({ length: 58 }, (_, index) => ({
   x: ((index * 73) % 101) / 100,
@@ -127,6 +139,93 @@ const moodPalettes = {
   prismatic: { accent: "#a970ff", warning: "#33e6ff" },
   oil: { accent: "#00d6ad", warning: "#d22cff" },
 };
+const directorScenes = [
+  {
+    name: "PRISMATIC DRIVE",
+    mode: "frequency",
+    controls: {
+      mood: "prismatic",
+      style: "cyber",
+      intensity: 1.28,
+      motion: 1.12,
+      neonLights: true,
+      colorRain: true,
+      geometry: true,
+      fractals: false,
+      macro: true,
+      bassStutter: true,
+      tripVisuals: false,
+    },
+  },
+  {
+    name: "LIQUID ORBIT",
+    mode: "orbit",
+    controls: {
+      mood: "oil",
+      style: "aurora",
+      intensity: 1.18,
+      motion: 0.82,
+      neonLights: true,
+      colorRain: false,
+      geometry: true,
+      fractals: true,
+      macro: true,
+      bassStutter: false,
+      tripVisuals: true,
+    },
+  },
+  {
+    name: "LASER DROP",
+    mode: "frequency",
+    controls: {
+      mood: "magenta",
+      style: "laser",
+      intensity: 1.46,
+      motion: 1.35,
+      neonLights: true,
+      colorRain: true,
+      geometry: false,
+      fractals: false,
+      macro: false,
+      bassStutter: true,
+      tripVisuals: false,
+    },
+  },
+  {
+    name: "FRACTAL FIELD",
+    mode: "field",
+    controls: {
+      mood: "cyan",
+      style: "hologram",
+      intensity: 1.05,
+      motion: 0.7,
+      neonLights: false,
+      colorRain: true,
+      geometry: true,
+      fractals: true,
+      macro: false,
+      bassStutter: false,
+      tripVisuals: true,
+    },
+  },
+  {
+    name: "DEEP SIGNAL",
+    mode: "waveform",
+    controls: {
+      mood: "amber",
+      style: "minimal",
+      intensity: 0.88,
+      motion: 0.52,
+      neonLights: false,
+      colorRain: false,
+      geometry: false,
+      fractals: true,
+      macro: true,
+      bassStutter: false,
+      tripVisuals: false,
+    },
+  },
+];
 const visualStyleProfiles = {
   cyber: {
     barMode: "solid",
@@ -939,6 +1038,139 @@ function applyVisualStyle() {
   });
 }
 
+function setVisualizationMode(mode) {
+  const validModes = ["frequency", "waveform", "orbit", "field"];
+  visualizationMode = validModes.includes(mode) ? mode : "frequency";
+  canvasWrap.dataset.mode = visualizationMode;
+  document.querySelectorAll(".mode-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === visualizationMode);
+  });
+
+  const labels = {
+    frequency: ["Frequency spectrum", "SPECTRUM / LIVE"],
+    waveform: ["Signal waveform", "TIME DOMAIN / LIVE"],
+    orbit: ["Signal orbit", "RADIAL MAP / LIVE"],
+    field: ["Spectral field", "HISTORY FIELD / LIVE"],
+  };
+  [visualizerTitle.textContent, visualModeLabel.textContent] = labels[visualizationMode];
+}
+
+function applyDirectorScene(index, time = performance.now()) {
+  directorSceneIndex = (index + directorScenes.length) % directorScenes.length;
+  const scene = directorScenes[directorSceneIndex];
+  visualControls = { ...visualControls, ...scene.controls };
+  visualControls.accent = moodPalettes[visualControls.mood]?.accent || visualControls.accent;
+  setVisualizationMode(scene.mode);
+  updateControlInterface();
+  saveVisualControls();
+  lastDirectorChange = time;
+  directorStatus.textContent = scene.name;
+}
+
+function advanceDirector(time = performance.now()) {
+  if (!directorActive) return;
+  applyDirectorScene(directorSceneIndex + 1, time);
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function createPresetPayload() {
+  return {
+    app: "AudioPulse Lab",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    visualizationMode,
+    controls: { ...visualControls },
+  };
+}
+
+function applyImportedPreset(payload) {
+  if (
+    !payload ||
+    payload.app !== "AudioPulse Lab" ||
+    payload.version !== 1 ||
+    typeof payload.controls !== "object"
+  ) {
+    throw new Error("Unsupported AudioPulse preset");
+  }
+
+  const imported = payload.controls;
+  const nextControls = { ...controlDefaults };
+  for (const key of Object.keys(controlDefaults)) {
+    const sameType = typeof imported[key] === typeof controlDefaults[key];
+    const validNumber = typeof imported[key] !== "number" || Number.isFinite(imported[key]);
+    if (sameType && validNumber) {
+      nextControls[key] = imported[key];
+    }
+  }
+
+  if (!moodPalettes[nextControls.mood] && nextControls.mood !== "custom") {
+    nextControls.mood = controlDefaults.mood;
+  }
+  if (!visualStyleProfiles[nextControls.style]) {
+    nextControls.style = controlDefaults.style;
+  }
+  if (!/^#[0-9a-f]{6}$/i.test(nextControls.accent)) {
+    nextControls.accent = controlDefaults.accent;
+  }
+  nextControls.sensitivity = Math.max(0.5, Math.min(2, nextControls.sensitivity));
+  nextControls.smoothing = Math.max(0, Math.min(0.95, nextControls.smoothing));
+  nextControls.intensity = Math.max(0.3, Math.min(1.8, nextControls.intensity));
+  nextControls.motion = Math.max(0, Math.min(2, nextControls.motion));
+
+  visualControls = nextControls;
+  setVisualizationMode(payload.visualizationMode);
+  updateControlInterface();
+  saveVisualControls();
+}
+
+function startVisualRecording() {
+  if (!window.MediaRecorder || !canvas.captureStream) {
+    recordStatus.textContent = "RECORDING UNSUPPORTED";
+    return;
+  }
+
+  const stream = canvas.captureStream(60);
+  const mimeTypes = [
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm",
+  ];
+  const mimeType = mimeTypes.find((type) => MediaRecorder.isTypeSupported(type));
+  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  recordedChunks = [];
+
+  mediaRecorder.addEventListener("dataavailable", (event) => {
+    if (event.data.size) recordedChunks.push(event.data);
+  });
+  mediaRecorder.addEventListener("stop", () => {
+    const blob = new Blob(recordedChunks, {
+      type: mediaRecorder.mimeType || "video/webm",
+    });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadBlob(blob, `audiopulse-visual-${stamp}.webm`);
+    stream.getTracks().forEach((track) => track.stop());
+    recordButton.classList.remove("active");
+    recordButton.textContent = "RECORD";
+    recordStatus.textContent = "SAVED WEBM VIDEO";
+    mediaRecorder = null;
+  });
+
+  mediaRecorder.start(250);
+  recordButton.classList.add("active");
+  recordButton.textContent = "STOP";
+  recordStatus.textContent = "RECORDING VISUALS";
+}
+
 function getSignalEnergy() {
   if (!frequencyData?.length) return 0;
 
@@ -1219,6 +1451,14 @@ function detectBeat(time) {
       bassStutterPhase = 0;
     }
     lastBeatTime = time;
+  }
+  if (
+    directorActive &&
+    bassPulse > 0.66 &&
+    transient > 0.085 &&
+    performance.now() - lastDirectorChange > 7000
+  ) {
+    advanceDirector(performance.now());
   }
 
   previousBassPulse += (bassPulse - previousBassPulse) * 0.22;
@@ -1973,6 +2213,9 @@ function animate() {
     const visualTime = now * visualControls.motion;
     const visualDelta = deltaTime * visualControls.motion;
 
+    if (directorActive && now - lastDirectorChange > 14000) {
+      advanceDirector(now);
+    }
     captureSpectrumHistory(now);
     detectBeat(visualTime);
     drawVisualizerBackdrop(width, height, visualEnergy, visualTime);
@@ -2121,6 +2364,49 @@ tripVisualsToggle.addEventListener("change", () => {
   saveVisualControls();
 });
 
+directorToggle.addEventListener("click", () => {
+  directorActive = !directorActive;
+  directorToggle.classList.toggle("active", directorActive);
+  directorToggle.textContent = directorActive ? "STOP" : "START";
+  if (directorActive) {
+    applyDirectorScene(directorSceneIndex + 1);
+  } else {
+    directorStatus.textContent = "MANUAL CONTROL";
+  }
+});
+
+recordButton.addEventListener("click", () => {
+  if (mediaRecorder?.state === "recording") {
+    mediaRecorder.stop();
+  } else {
+    startVisualRecording();
+  }
+});
+
+exportPreset.addEventListener("click", () => {
+  const preset = JSON.stringify(createPresetPayload(), null, 2);
+  const blob = new Blob([preset], { type: "application/json" });
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `audiopulse-preset-${stamp}.json`);
+  presetStatus.textContent = "PRESET EXPORTED";
+});
+
+importPreset.addEventListener("change", async () => {
+  const [file] = importPreset.files;
+  if (!file) return;
+
+  try {
+    const payload = JSON.parse(await file.text());
+    applyImportedPreset(payload);
+    presetStatus.textContent = "PRESET IMPORTED";
+  } catch (error) {
+    console.error("Unable to import preset:", error);
+    presetStatus.textContent = "INVALID PRESET FILE";
+  } finally {
+    importPreset.value = "";
+  }
+});
+
 moodSwatches.forEach((button) => {
   button.addEventListener("click", () => {
     visualControls.mood = button.dataset.mood;
@@ -2188,27 +2474,7 @@ seekBar.addEventListener("input", () => {
 
 document.querySelectorAll(".mode-button").forEach((button) => {
   button.addEventListener("click", () => {
-    visualizationMode = button.dataset.mode;
-    canvasWrap.dataset.mode = visualizationMode;
-    document.querySelectorAll(".mode-button").forEach((item) => {
-      item.classList.toggle("active", item === button);
-    });
-    visualizerTitle.textContent =
-      visualizationMode === "frequency"
-        ? "Frequency spectrum"
-        : visualizationMode === "waveform"
-          ? "Signal waveform"
-          : visualizationMode === "orbit"
-            ? "Signal orbit"
-            : "Spectral field";
-    visualModeLabel.textContent =
-      visualizationMode === "frequency"
-        ? "SPECTRUM / LIVE"
-        : visualizationMode === "waveform"
-          ? "TIME DOMAIN / LIVE"
-          : visualizationMode === "orbit"
-            ? "RADIAL MAP / LIVE"
-            : "HISTORY FIELD / LIVE";
+    setVisualizationMode(button.dataset.mode);
   });
 });
 
@@ -2239,6 +2505,7 @@ document.querySelector("#themeToggle").addEventListener("click", () => {
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("beforeunload", () => {
   cancelAnimationFrame(animationId);
+  if (mediaRecorder?.state === "recording") mediaRecorder.stop();
   captureStream?.getTracks().forEach((track) => track.stop());
   if (objectUrl) URL.revokeObjectURL(objectUrl);
 });

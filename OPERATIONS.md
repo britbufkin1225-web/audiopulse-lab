@@ -143,6 +143,13 @@ Use the manual control deck to adjust the presentation:
   a visual effect and does not alter the audio playback.
 - **Trip visuals:** shows or hides a frequency-reactive kaleidoscope, receding
   polygon tunnel, and chromatic ribbon trails.
+- **Auto director:** cycles curated combinations of modes, moods, styles, and
+  layers every 14 seconds. Strong bass drops can advance the scene after a
+  seven-second safety interval.
+- **Visual recording:** records the canvas at up to 60 FPS and downloads a
+  silent WebM video when stopped. Browser audio is not embedded in the file.
+- **Preset sharing:** exports all controls and the active visualization mode
+  to versioned JSON. Imported files are validated before they are applied.
 - **Color mood:** selects Neon, Cyan, Magenta, Amber, Prismatic, Oil Slick, or
   a custom color. Prismatic shows multiple continuously shifting hues
   simultaneously. Oil Slick adds shifting interference colors and an

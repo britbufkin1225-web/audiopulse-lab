@@ -31,6 +31,9 @@ inside the browser. Uploaded files are not sent to a server.
 - Gigantic macro forms with slow parallax, color refraction, and bass-reactive scale
 - Dubstep-inspired visual bass stutter with gated frame slices and repeating pulse rings
 - Trip visuals with kaleidoscope petals, a receding tunnel, and chromatic ribbon trails
+- Automatic scene director with timed scenes and bass-drop transitions
+- Canvas recording exported as a downloadable WebM visual performance
+- Versioned JSON preset export and validated preset import
 - Neon, cyan, magenta, amber, custom, animated Prismatic, and Oil Slick color moods
 - Audio-reactive liquid membrane with flowing interference colors in Oil Slick mode
 - Five canvas rendering styles: Cyber, Hologram, Laser, Minimal, and Aurora
@@ -129,6 +132,9 @@ The control deck applies to local files and live tab capture:
 | Motion | Changes animation speed; `0%` freezes procedural motion |
 | Ambient overlays | Toggles nodes, filaments, particles, and energy arcs |
 | Beat effects | Toggles beat-triggered shockwaves and arc bursts |
+| Auto director | Cycles curated scenes every 14 seconds or on strong drops |
+| Visual recording | Records the canvas and downloads a silent WebM video |
+| Preset sharing | Exports or imports the complete visual setup as JSON |
 | Color mood | Applies a preset or custom accent across the complete dashboard |
 | Visual style | Changes geometry, glow, reflections, layering, and overlay density |
 

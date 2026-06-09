@@ -991,6 +991,73 @@ canvas {
   letter-spacing: 0.08em;
 }
 
+.performance-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.performance-tool {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  background: rgba(var(--accent-rgb), 0.025);
+  font-family: "DM Mono", monospace;
+}
+
+.performance-tool > span {
+  color: var(--text);
+  font-size: 7px;
+  letter-spacing: 0.09em;
+}
+
+.performance-tool small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 6px;
+  letter-spacing: 0.07em;
+}
+
+.tool-button {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.055);
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.tool-button:hover,
+.tool-button.active {
+  color: #050708;
+  background: var(--accent);
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.32);
+}
+
+.preset-tool > div {
+  display: flex;
+  gap: 5px;
+}
+
+.import-button {
+  display: inline-grid;
+  place-items: center;
+}
+
+.import-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
 .style-options {
   display: grid;
   grid-template-columns: repeat(5, minmax(92px, 1fr));
@@ -1306,6 +1373,10 @@ footer {
     grid-template-columns: 1fr 1fr auto;
   }
 
+  .performance-tools {
+    grid-template-columns: 1fr;
+  }
+
   .style-picker {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -1376,6 +1447,10 @@ footer {
   .control-grid,
   .control-toggles {
     grid-template-columns: 1fr;
+  }
+
+  .performance-tool {
+    grid-template-columns: 1fr auto;
   }
 
   .style-options {

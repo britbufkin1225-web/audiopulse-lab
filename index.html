@@ -297,6 +297,36 @@
               </button>
             </div>
           </div>
+
+          <div class="performance-tools" aria-label="Performance tools">
+            <div class="performance-tool">
+              <span>AUTO DIRECTOR</span>
+              <button class="tool-button" id="directorToggle" type="button">
+                START
+              </button>
+              <small id="directorStatus">MANUAL CONTROL</small>
+            </div>
+            <div class="performance-tool">
+              <span>VISUAL RECORDING</span>
+              <button class="tool-button" id="recordButton" type="button">
+                RECORD
+              </button>
+              <small id="recordStatus">WEBM / CANVAS</small>
+            </div>
+            <div class="performance-tool preset-tool">
+              <span>PRESET SHARING</span>
+              <div>
+                <button class="tool-button" id="exportPreset" type="button">
+                  EXPORT
+                </button>
+                <label class="tool-button import-button" for="importPreset">
+                  IMPORT
+                  <input id="importPreset" type="file" accept="application/json,.json" />
+                </label>
+              </div>
+              <small id="presetStatus">JSON SETTINGS FILE</small>
+            </div>
+          </div>
         </section>
 
         <div class="transport-panel panel">

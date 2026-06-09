@@ -26,6 +26,8 @@ const overlayToggle = document.querySelector("#overlayToggle");
 const beatFxToggle = document.querySelector("#beatFxToggle");
 const neonLightsToggle = document.querySelector("#neonLightsToggle");
 const colorRainToggle = document.querySelector("#colorRainToggle");
+const geometryToggle = document.querySelector("#geometryToggle");
+const fractalsToggle = document.querySelector("#fractalsToggle");
 const resetControls = document.querySelector("#resetControls");
 const customColor = document.querySelector("#customColor");
 const moodSwatches = document.querySelectorAll(".mood-swatch");
@@ -96,6 +98,8 @@ const controlDefaults = {
   beatFx: true,
   neonLights: true,
   colorRain: true,
+  geometry: true,
+  fractals: true,
   mood: "neon",
   accent: "#b7ff33",
   style: "cyber",
@@ -472,6 +476,128 @@ function drawColorRain(width, height, energy, time, deltaTime) {
     }
   }
 
+  ctx.restore();
+}
+
+function drawGeometryLayer(width, height, energy, time) {
+  if (!visualControls.geometry || reducedMotion) return;
+
+  const style = getVisualStyle();
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const baseRadius = Math.min(width, height) * (0.16 + energy * 0.035);
+  const rings = style.barMode === "minimal" ? 2 : 4;
+
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.globalCompositeOperation = "lighter";
+
+  for (let ring = rings; ring >= 1; ring -= 1) {
+    const sides = 3 + ring * 2;
+    const radius = baseRadius * (0.48 + ring * 0.38);
+    const rotation = time * (ring % 2 ? 0.000055 : -0.00004) + ring * 0.34;
+    const bandIndex = Math.min(
+      frequencyData.length - 1,
+      5 + ring * 19
+    );
+    const magnitude = frequencyData[bandIndex] / 255;
+
+    ctx.beginPath();
+    for (let vertex = 0; vertex <= sides; vertex += 1) {
+      const ratio = vertex / sides;
+      const angle = ratio * Math.PI * 2 + rotation;
+      const vertexBand = Math.min(
+        frequencyData.length - 1,
+        bandIndex + (vertex % sides) * 3
+      );
+      const vertexEnergy = frequencyData[vertexBand] / 255;
+      const reactiveRadius = radius * (1 + vertexEnergy * 0.13);
+      const x = Math.cos(angle) * reactiveRadius;
+      const y = Math.sin(angle) * reactiveRadius;
+      if (vertex === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    const color = isPrismatic()
+      ? prismaticColor(ring / rings, time, 0.24 + magnitude * 0.42, ring * 24)
+      : `rgba(${getThemeColor("--accent-rgb")}, ${0.1 + magnitude * 0.34})`;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = (5 + magnitude * 14) * style.glow;
+    ctx.lineWidth = 0.55 + magnitude * 0.9;
+    ctx.stroke();
+
+    if (ring > 1) {
+      ctx.globalAlpha = 0.1 + magnitude * 0.18;
+      for (let vertex = 0; vertex < sides; vertex += 1) {
+        const angle = (vertex / sides) * Math.PI * 2 + rotation;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  ctx.restore();
+}
+
+function traceFractalBranch(length, depth, angle, time, colorPosition) {
+  if (depth <= 0 || length < 2) return;
+
+  const bandIndex = Math.min(
+    frequencyData.length - 1,
+    3 + depth * 17
+  );
+  const magnitude = frequencyData[bandIndex] / 255;
+  const sway = Math.sin(time * 0.0007 + depth * 1.3) * 0.08;
+  const branchAngle = angle + sway + magnitude * 0.07;
+  const endX = Math.sin(branchAngle) * length;
+  const endY = -Math.cos(branchAngle) * length;
+  const color = isPrismatic()
+    ? prismaticColor(colorPosition + depth * 0.08, time, 0.16 + depth * 0.075)
+    : `rgba(${getThemeColor("--accent-rgb")}, ${0.08 + depth * 0.065})`;
+
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 3 + magnitude * 7;
+  ctx.lineWidth = Math.max(0.45, depth * 0.23);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.translate(endX, endY);
+  const spread = 0.42 + magnitude * 0.18;
+  traceFractalBranch(length * 0.69, depth - 1, branchAngle - spread, time, colorPosition);
+  traceFractalBranch(length * 0.69, depth - 1, branchAngle + spread, time, colorPosition + 0.12);
+  ctx.restore();
+}
+
+function drawFractalLayer(width, height, energy, time) {
+  if (!visualControls.fractals || reducedMotion) return;
+
+  const style = getVisualStyle();
+  if (style.overlayDensity < 0.1) return;
+
+  const depth = width < 520 || style.barMode === "minimal" ? 4 : 5;
+  const length = Math.min(width, height) * (0.095 + energy * 0.035);
+  const anchors = [
+    { x: width * 0.08, y: height * 0.88, angle: 0.34, color: 0.08 },
+    { x: width * 0.92, y: height * 0.88, angle: -0.34, color: 0.62 },
+  ];
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (const anchor of anchors) {
+    ctx.save();
+    ctx.translate(anchor.x, anchor.y);
+    ctx.globalAlpha = (0.45 + energy * 0.4) * style.overlayDensity;
+    traceFractalBranch(length, depth, anchor.angle, time, anchor.color);
+    ctx.restore();
+  }
   ctx.restore();
 }
 
@@ -902,6 +1028,8 @@ function updateControlInterface() {
   beatFxToggle.checked = visualControls.beatFx;
   neonLightsToggle.checked = visualControls.neonLights;
   colorRainToggle.checked = visualControls.colorRain;
+  geometryToggle.checked = visualControls.geometry;
+  fractalsToggle.checked = visualControls.fractals;
   applyColorMood();
   applyVisualStyle();
 
@@ -1511,6 +1639,7 @@ function animate() {
     drawLiquidMembrane(width, height, visualEnergy, visualTime);
     drawNeonLights(width, height, visualEnergy, visualTime);
     drawColorRain(width, height, visualEnergy, visualTime, visualDelta);
+    drawGeometryLayer(width, height, visualEnergy, visualTime);
     if (visualizationMode === "frequency") {
       drawFrequencyBars(width, height, visualEnergy, visualTime);
     } else if (visualizationMode === "waveform") {
@@ -1521,6 +1650,7 @@ function animate() {
       drawSpectrumField(width, height, visualEnergy, visualTime);
     }
 
+    drawFractalLayer(width, height, visualEnergy, visualTime);
     drawSignalNetwork(width, height, visualEnergy, visualTime);
     drawEnergyArcs(width, height, visualEnergy, visualTime, visualDelta);
     spawnParticles(width, height, visualEnergy);
@@ -1619,6 +1749,16 @@ neonLightsToggle.addEventListener("change", () => {
 
 colorRainToggle.addEventListener("change", () => {
   visualControls.colorRain = colorRainToggle.checked;
+  saveVisualControls();
+});
+
+geometryToggle.addEventListener("change", () => {
+  visualControls.geometry = geometryToggle.checked;
+  saveVisualControls();
+});
+
+fractalsToggle.addEventListener("change", () => {
+  visualControls.fractals = fractalsToggle.checked;
   saveVisualControls();
 });
 

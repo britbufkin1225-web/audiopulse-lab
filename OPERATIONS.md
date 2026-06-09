@@ -132,6 +132,10 @@ Use the manual control deck to adjust the presentation:
   illuminated canvas edges.
 - **Color rain:** shows or hides multicolor droplets that fall at varied speeds
   and react independently to frequency bands.
+- **Geometry:** shows or hides rotating polygon lattices with audio-reactive
+  vertices and radial connections.
+- **Fractals:** shows or hides mirrored recursive branches that pulse and sway
+  with the analyzed signal.
 - **Color mood:** selects Neon, Cyan, Magenta, Amber, Prismatic, Oil Slick, or
   a custom color. Prismatic shows multiple continuously shifting hues
   simultaneously. Oil Slick adds shifting interference colors and an
